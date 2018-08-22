@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `tokio_core` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, tokio_core">
+
+    <title>tokio_core - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Crate tokio_core</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'tokio_core', ty: 'mod', relpath: '../'};</script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>tokio_core</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/tokio_core/lib.rs.html#1-121' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p><code>Future</code>-powered I/O at the core of Tokio</p>
+<p>This crate uses the <code>futures</code> crate to provide an event loop (&quot;reactor
+core&quot;) which can be used to drive I/O like TCP and UDP, spawned future
+tasks, and other events like channels/timeouts. All asynchronous I/O is
+powered by the <code>mio</code> crate.</p>
+<p>The concrete types provided in this crate are relatively bare bones but are
+intended to be the essential foundation for further projects needing an
+event loop. In this crate you'll find:</p>
+<ul>
+<li>TCP, both streams and listeners</li>
+<li>UDP sockets</li>
+<li>Timeouts</li>
+<li>An event loop to run futures</li>
+</ul>
+<p>More functionality is likely to be added over time, but otherwise the crate
+is intended to be flexible, with the <code>PollEvented</code> type accepting any
+type that implements <code>mio::Evented</code>. For example, the <code>tokio-uds</code> crate
+uses <code>PollEvented</code> to provide support for Unix domain sockets.</p>
+<p>Some other important tasks covered by this crate are:</p>
+<ul>
+<li>
+<p>The ability to spawn futures into an event loop. The <code>Handle</code> and <code>Remote</code>
+types have a <code>spawn</code> method which allows executing a future on an event
+loop. The <code>Handle::spawn</code> method crucially does not require the future
+itself to be <code>Send</code>.</p>
+</li>
+<li>
+<p>The <code>Io</code> trait serves as an abstraction for future crates to build on top
+of. This packages up <code>Read</code> and <code>Write</code> functionality as well as the
+ability to poll for readiness on both ends.</p>
+</li>
+<li>
+<p>All I/O is futures-aware. If any action in this crate returns &quot;not ready&quot;
+or &quot;would block&quot;, then the current future task is scheduled to receive a
+notification when it would otherwise make progress.</p>
+</li>
+</ul>
+<p>You can find more extensive documentation in terms of tutorials at
+<a href="https://tokio.rs">https://tokio.rs</a>.</p>
+<h1 id="examples" class="section-header"><a href="#examples">Examples</a></h1>
+<p>A simple TCP echo server:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">futures</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tokio_core</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tokio_io</span>;
+
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">Stream</span>};
+<span class="kw">use</span> <span class="ident">tokio_io</span>::<span class="ident">AsyncRead</span>;
+<span class="kw">use</span> <span class="ident">tokio_io</span>::<span class="ident">io</span>::<span class="ident">copy</span>;
+<span class="kw">use</span> <span class="ident">tokio_core</span>::<span class="ident">net</span>::<span class="ident">TcpListener</span>;
+<span class="kw">use</span> <span class="ident">tokio_core</span>::<span class="ident">reactor</span>::<span class="ident">Core</span>;
+
+<span class="kw">fn</span> <span class="ident">main</span>() {
+    <span class="comment">// Create the event loop that will drive this server</span>
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">core</span> <span class="op">=</span> <span class="ident">Core</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
+    <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">core</span>.<span class="ident">handle</span>();
+
+    <span class="comment">// Bind the server&#39;s socket</span>
+    <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="string">&quot;127.0.0.1:12345&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
+    <span class="kw">let</span> <span class="ident">listener</span> <span class="op">=</span> <span class="ident">TcpListener</span>::<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">addr</span>, <span class="kw-2">&amp;</span><span class="ident">handle</span>).<span class="ident">unwrap</span>();
+
+    <span class="comment">// Pull out a stream of sockets for incoming connections</span>
+    <span class="kw">let</span> <span class="ident">server</span> <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">incoming</span>().<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">sock</span>, _)<span class="op">|</span> {
+        <span class="comment">// Split up the reading and writing parts of the</span>
+        <span class="comment">// socket</span>
+        <span class="kw">let</span> (<span class="ident">reader</span>, <span class="ident">writer</span>) <span class="op">=</span> <span class="ident">sock</span>.<span class="ident">split</span>();
+
+        <span class="comment">// A future that echos the data and returns how</span>
+        <span class="comment">// many bytes were copied...</span>
+        <span class="kw">let</span> <span class="ident">bytes_copied</span> <span class="op">=</span> <span class="ident">copy</span>(<span class="ident">reader</span>, <span class="ident">writer</span>);
+
+        <span class="comment">// ... after which we&#39;ll print what happened</span>
+        <span class="kw">let</span> <span class="ident">handle_conn</span> <span class="op">=</span> <span class="ident">bytes_copied</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">amt</span><span class="op">|</span> {
+            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;wrote {:?} bytes&quot;</span>, <span class="ident">amt</span>)
+        }).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> {
+            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;IO error {:?}&quot;</span>, <span class="ident">err</span>)
+        });
+
+        <span class="comment">// Spawn the future as a concurrent task</span>
+        <span class="ident">handle</span>.<span class="ident">spawn</span>(<span class="ident">handle_conn</span>);
+
+        <span class="prelude-val">Ok</span>(())
+    });
+
+    <span class="comment">// Spin up the server on the event loop</span>
+    <span class="ident">core</span>.<span class="ident">run</span>(<span class="ident">server</span>).<span class="ident">unwrap</span>();
+}</pre>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="net/index.html"
+                                  title='mod tokio_core::net'>net</a></td>
+                           <td class='docblock-short'>
+                                <p>TCP/UDP bindings for <code>tokio-core</code></p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="reactor/index.html"
+                                  title='mod tokio_core::reactor'>reactor</a></td>
+                           <td class='docblock-short'>
+                                <p>The core reactor driving all I/O</p>
+
+                           </td>
+                       </tr></table><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.try_nb.html"
+                                  title='macro tokio_core::try_nb'>try_nb</a></td>
+                           <td class='docblock-short'>
+                                <p>A convenience macro for working with <code>io::Result&lt;T&gt;</code> from the <code>Read</code> and
+<code>Write</code> traits.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "tokio_core";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

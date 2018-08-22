@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `TransactWatcher` trait in crate `mentat_db`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, TransactWatcher">
+
+    <title>mentat_db::TransactWatcher - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait TransactWatcher</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.datom">datom</a><a href="#tymethod.done">done</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='index.html'>mentat_db</a></p><script>window.sidebarCurrent = {name: 'TransactWatcher', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>mentat_db</a>::<wbr><a class="trait" href=''>TransactWatcher</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/mentat_db/watcher.rs.html#37-45' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait TransactWatcher {
+    fn <a href='#tymethod.datom' class='fnname'>datom</a>(&amp;mut self, op: <a class="enum" href="../edn/entities/enum.OpType.html" title="enum edn::entities::OpType">OpType</a>, e: <a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>, a: <a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>, v: &amp;<a class="enum" href="../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>);
+<div class='item-spacer'></div>    fn <a href='#tymethod.done' class='fnname'>done</a>(&amp;mut self, t: &amp;<a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>, schema: &amp;<a class="struct" href="../mentat_db/types/struct.Schema.html" title="struct mentat_db::types::Schema">Schema</a>) -&gt; <a class="type" href="../db_traits/errors/type.Result.html" title="type db_traits::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;;
+}</pre>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.datom' class='method'><span id='datom.v' class='invisible'><code>fn <a href='#tymethod.datom' class='fnname'>datom</a>(&amp;mut self, op: <a class="enum" href="../edn/entities/enum.OpType.html" title="enum edn::entities::OpType">OpType</a>, e: <a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>, a: <a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>, v: &amp;<a class="enum" href="../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>)</code></span></h3><h3 id='tymethod.done' class='method'><span id='done.v' class='invisible'><code>fn <a href='#tymethod.done' class='fnname'>done</a>(&amp;mut self, t: &amp;<a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>, schema: &amp;<a class="struct" href="../mentat_db/types/struct.Schema.html" title="struct mentat_db::types::Schema">Schema</a>) -&gt; <a class="type" href="../db_traits/errors/type.Result.html" title="type db_traits::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></h3><div class='docblock'><p>Only return an error if you want to interrupt the transact!
+Called with the schema <em>prior to</em> the transact -- any attributes or
+attribute changes transacted during this transact are not reflected in
+the schema.</p>
+</div></div>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><div class='out-of-band'><a class='srclink' href='../src/mentat_db/cache.rs.html#1608-1667' title='goto source code'>[src]</a></div><code>impl&lt;'a&gt; TransactWatcher for <a class="struct" href="../mentat_db/cache/struct.InProgressCacheTransactWatcher.html" title="struct mentat_db::cache::InProgressCacheTransactWatcher">InProgressCacheTransactWatcher</a>&lt;'a&gt;</code></li>
+<li><div class='out-of-band'><a class='srclink' href='../src/mentat_db/tx_observer.rs.html#179-189' title='goto source code'>[src]</a></div><code>impl TransactWatcher for <a class="struct" href="../mentat_db/tx_observer/struct.InProgressObserverTransactWatcher.html" title="struct mentat_db::tx_observer::InProgressObserverTransactWatcher">InProgressObserverTransactWatcher</a></code></li>
+</ul><script type="text/javascript" async
+                         src="../implementors/mentat_db/trait.TransactWatcher.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mentat_db";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

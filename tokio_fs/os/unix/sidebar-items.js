@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["symlink","Creates a new symbolic link on the filesystem."]],"struct":[["SymlinkFuture","Future returned by `symlink`."]]});

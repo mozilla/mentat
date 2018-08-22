@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Entry` enum in crate `ordermap`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Entry">
+
+    <title>ordermap::Entry - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc enum">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Enum Entry</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.Occupied">Occupied</a><a href="#variant.Vacant">Vacant</a></div><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.or_insert">or_insert</a><a href="#method.or_insert_with">or_insert_with</a><a href="#method.key">key</a><a href="#method.index">index</a></div></div><p class='location'><a href='index.html'>ordermap</a></p><script>window.sidebarCurrent = {name: 'Entry', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Enum <a href='index.html'>ordermap</a>::<wbr><a class="enum" href=''>Entry</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/ordermap/lib.rs.html#520-525' title='goto source code'>[src]</a></span></h1>
+<pre class='rust enum'>pub enum Entry&lt;'a, K:&nbsp;'a, V:&nbsp;'a, S:&nbsp;'a&nbsp;=&nbsp;<a class="struct" href="https://doc.rust-lang.org/nightly/std/collections/hash/map/struct.RandomState.html" title="struct std::collections::hash::map::RandomState">RandomState</a>&gt; {
+    Occupied(<a class="struct" href="../ordermap/struct.OccupiedEntry.html" title="struct ordermap::OccupiedEntry">OccupiedEntry</a>&lt;'a, K, V, S&gt;),
+    Vacant(<a class="struct" href="../ordermap/struct.VacantEntry.html" title="struct ordermap::VacantEntry">VacantEntry</a>&lt;'a, K, V, S&gt;),
+}</pre><div class='docblock'><p>Entry for an existing key-value pair or a vacant location to
+insert one.</p>
+<p>FIXME: Remove dependence on the <code>S</code> parameter
+(to match HashMap).</p>
+</div><h2 id='variants' class='variants small-section-header'>
+                   Variants<a href='#variants' class='anchor'></a></h2>
+<span id="variant.Occupied" class="variant small-section-header"><a href="#variant.Occupied" class="anchor field"></a><span id='Occupied.v' class='invisible'><code>Occupied(<a class="struct" href="../ordermap/struct.OccupiedEntry.html" title="struct ordermap::OccupiedEntry">OccupiedEntry</a>&lt;'a, K, V, S&gt;)</code></span></span><div class='docblock'><p>Existing slot with equivalent key.</p>
+</div><span id="variant.Vacant" class="variant small-section-header"><a href="#variant.Vacant" class="anchor field"></a><span id='Vacant.v' class='invisible'><code>Vacant(<a class="struct" href="../ordermap/struct.VacantEntry.html" title="struct ordermap::VacantEntry">VacantEntry</a>&lt;'a, K, V, S&gt;)</code></span></span><div class='docblock'><p>Vacant slot (no equivalent key in the map).</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;'a, K, V, S&gt; <a class="enum" href="../ordermap/enum.Entry.html" title="enum ordermap::Entry">Entry</a>&lt;'a, K, V, S&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/ordermap/lib.rs.html#527-560' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.or_insert' class="method"><span id='or_insert.v' class='invisible'><code>pub fn <a href='#method.or_insert' class='fnname'>or_insert</a>(self, default: V) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>V</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/ordermap/lib.rs.html#529-534' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Computes in <strong>O(1)</strong> time (amortized average).</p>
+</div><h4 id='method.or_insert_with' class="method"><span id='or_insert_with.v' class='invisible'><code>pub fn <a href='#method.or_insert_with' class='fnname'>or_insert_with</a>&lt;F&gt;(self, call: F) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>V <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>() -&gt; V,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/ordermap/lib.rs.html#537-544' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Computes in <strong>O(1)</strong> time (amortized average).</p>
+</div><h4 id='method.key' class="method"><span id='key.v' class='invisible'><code>pub fn <a href='#method.key' class='fnname'>key</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>K</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/ordermap/lib.rs.html#546-551' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.index' class="method"><span id='index.v' class='invisible'><code>pub fn <a href='#method.index' class='fnname'>index</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/ordermap/lib.rs.html#554-559' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Return the index where the key-value pair exists or will be inserted.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "ordermap";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

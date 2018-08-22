@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Keyword","A keyword is a symbol, optionally with a namespace, that prints with a leading colon. This concept is imported from Clojure, as it features in EDN and the query syntax that we use."],["NamespacedSymbol",""],["PlainSymbol","A simplification of Clojure's Symbol."]]});

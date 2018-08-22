@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `InProgress` struct in crate `mentat_transaction`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, InProgress">
+
+    <title>mentat_transaction::InProgress - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct InProgress</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#fields">Fields</a><div class="sidebar-links"><a href="#structfield.transaction">transaction</a><a href="#structfield.mutex">mutex</a><a href="#structfield.generation">generation</a><a href="#structfield.partition_map">partition_map</a><a href="#structfield.schema">schema</a><a href="#structfield.cache">cache</a><a href="#structfield.use_caching">use_caching</a><a href="#structfield.tx_observer">tx_observer</a><a href="#structfield.tx_observer_watcher">tx_observer_watcher</a></div><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.builder">builder</a><a href="#method.use_caching">use_caching</a><a href="#method.transact_builder">transact_builder</a><a href="#method.transact_terms">transact_terms</a><a href="#method.transact_entities">transact_entities</a><a href="#method.transact">transact</a><a href="#method.import">import</a><a href="#method.rollback">rollback</a><a href="#method.commit">commit</a><a href="#method.cache">cache</a><a href="#method.last_tx_id">last_tx_id</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Queryable">Queryable</a><a href="#impl-Pullable">Pullable</a><a href="#impl-HasSchema">HasSchema</a></div></div><p class='location'><a href='index.html'>mentat_transaction</a></p><script>window.sidebarCurrent = {name: 'InProgress', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>mentat_transaction</a>::<wbr><a class="struct" href=''>InProgress</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/mentat_transaction/lib.rs.html#142-152' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct InProgress&lt;'a, 'c&gt; {
+    pub transaction: <a class="struct" href="../rusqlite/transaction/struct.Transaction.html" title="struct rusqlite::transaction::Transaction">Transaction</a>&lt;'c&gt;,
+    pub mutex: &amp;'a <a class="struct" href="https://doc.rust-lang.org/nightly/std/sync/mutex/struct.Mutex.html" title="struct std::sync::mutex::Mutex">Mutex</a>&lt;<a class="struct" href="../mentat_transaction/metadata/struct.Metadata.html" title="struct mentat_transaction::metadata::Metadata">Metadata</a>&gt;,
+    pub generation: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>,
+    pub partition_map: <a class="struct" href="../mentat_db/types/struct.PartitionMap.html" title="struct mentat_db::types::PartitionMap">PartitionMap</a>,
+    pub schema: <a class="struct" href="../mentat_core/struct.Schema.html" title="struct mentat_core::Schema">Schema</a>,
+    pub cache: <a class="struct" href="../mentat_db/cache/struct.InProgressSQLiteAttributeCache.html" title="struct mentat_db::cache::InProgressSQLiteAttributeCache">InProgressSQLiteAttributeCache</a>,
+    pub use_caching: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>,
+    pub tx_observer: &amp;'a <a class="struct" href="https://doc.rust-lang.org/nightly/std/sync/mutex/struct.Mutex.html" title="struct std::sync::mutex::Mutex">Mutex</a>&lt;<a class="struct" href="../mentat_db/tx_observer/struct.TxObservationService.html" title="struct mentat_db::tx_observer::TxObservationService">TxObservationService</a>&gt;,
+    pub tx_observer_watcher: <a class="struct" href="../mentat_db/tx_observer/struct.InProgressObserverTransactWatcher.html" title="struct mentat_db::tx_observer::InProgressObserverTransactWatcher">InProgressObserverTransactWatcher</a>,
+}</pre><div class='docblock'><p>Represents an in-progress, not yet committed, set of changes to the store.
+Call <code>commit</code> to commit your changes, or <code>rollback</code> to discard them.
+A transaction is held open until you do so.
+Your changes will be implicitly dropped along with this struct.</p>
+</div><h2 id='fields' class='fields small-section-header'>
+                       Fields<a href='#fields' class='anchor'></a></h2><span id="structfield.transaction" class="structfield small-section-header">
+                           <a href="#structfield.transaction" class="anchor field"></a>
+                           <span id="transaction.v" class='invisible'>
+                           <code>transaction: <a class="struct" href="../rusqlite/transaction/struct.Transaction.html" title="struct rusqlite::transaction::Transaction">Transaction</a>&lt;'c&gt;</code>
+                           </span></span><span id="structfield.mutex" class="structfield small-section-header">
+                           <a href="#structfield.mutex" class="anchor field"></a>
+                           <span id="mutex.v" class='invisible'>
+                           <code>mutex: &amp;'a <a class="struct" href="https://doc.rust-lang.org/nightly/std/sync/mutex/struct.Mutex.html" title="struct std::sync::mutex::Mutex">Mutex</a>&lt;<a class="struct" href="../mentat_transaction/metadata/struct.Metadata.html" title="struct mentat_transaction::metadata::Metadata">Metadata</a>&gt;</code>
+                           </span></span><span id="structfield.generation" class="structfield small-section-header">
+                           <a href="#structfield.generation" class="anchor field"></a>
+                           <span id="generation.v" class='invisible'>
+                           <code>generation: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a></code>
+                           </span></span><span id="structfield.partition_map" class="structfield small-section-header">
+                           <a href="#structfield.partition_map" class="anchor field"></a>
+                           <span id="partition_map.v" class='invisible'>
+                           <code>partition_map: <a class="struct" href="../mentat_db/types/struct.PartitionMap.html" title="struct mentat_db::types::PartitionMap">PartitionMap</a></code>
+                           </span></span><span id="structfield.schema" class="structfield small-section-header">
+                           <a href="#structfield.schema" class="anchor field"></a>
+                           <span id="schema.v" class='invisible'>
+                           <code>schema: <a class="struct" href="../mentat_core/struct.Schema.html" title="struct mentat_core::Schema">Schema</a></code>
+                           </span></span><span id="structfield.cache" class="structfield small-section-header">
+                           <a href="#structfield.cache" class="anchor field"></a>
+                           <span id="cache.v" class='invisible'>
+                           <code>cache: <a class="struct" href="../mentat_db/cache/struct.InProgressSQLiteAttributeCache.html" title="struct mentat_db::cache::InProgressSQLiteAttributeCache">InProgressSQLiteAttributeCache</a></code>
+                           </span></span><span id="structfield.use_caching" class="structfield small-section-header">
+                           <a href="#structfield.use_caching" class="anchor field"></a>
+                           <span id="use_caching.v" class='invisible'>
+                           <code>use_caching: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code>
+                           </span></span><span id="structfield.tx_observer" class="structfield small-section-header">
+                           <a href="#structfield.tx_observer" class="anchor field"></a>
+                           <span id="tx_observer.v" class='invisible'>
+                           <code>tx_observer: &amp;'a <a class="struct" href="https://doc.rust-lang.org/nightly/std/sync/mutex/struct.Mutex.html" title="struct std::sync::mutex::Mutex">Mutex</a>&lt;<a class="struct" href="../mentat_db/tx_observer/struct.TxObservationService.html" title="struct mentat_db::tx_observer::TxObservationService">TxObservationService</a>&gt;</code>
+                           </span></span><span id="structfield.tx_observer_watcher" class="structfield small-section-header">
+                           <a href="#structfield.tx_observer_watcher" class="anchor field"></a>
+                           <span id="tx_observer_watcher.v" class='invisible'>
+                           <code>tx_observer_watcher: <a class="struct" href="../mentat_db/tx_observer/struct.InProgressObserverTransactWatcher.html" title="struct mentat_db::tx_observer::InProgressObserverTransactWatcher">InProgressObserverTransactWatcher</a></code>
+                           </span></span>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;'a, 'c&gt; <a class="struct" href="../mentat_transaction/struct.InProgress.html" title="struct mentat_transaction::InProgress">InProgress</a>&lt;'a, 'c&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#181-323' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.builder' class="method"><span id='builder.v' class='invisible'><code>pub fn <a href='#method.builder' class='fnname'>builder</a>(self) -&gt; <a class="struct" href="../mentat_transaction/entity_builder/struct.InProgressBuilder.html" title="struct mentat_transaction::entity_builder::InProgressBuilder">InProgressBuilder</a>&lt;'a, 'c&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#182-184' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.use_caching' class="method"><span id='use_caching.v-1' class='invisible'><code>pub fn <a href='#method.use_caching' class='fnname'>use_caching</a>(&amp;mut self, yesno: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#187-189' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Choose whether to use in-memory caches for running queries.</p>
+</div><h4 id='method.transact_builder' class="method"><span id='transact_builder.v' class='invisible'><code>pub fn <a href='#method.transact_builder' class='fnname'>transact_builder</a>(&amp;mut self, builder: <a class="struct" href="../mentat_transaction/entity_builder/struct.TermBuilder.html" title="struct mentat_transaction::entity_builder::TermBuilder">TermBuilder</a>) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="struct" href="../mentat_core/tx_report/struct.TxReport.html" title="struct mentat_core::tx_report::TxReport">TxReport</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#193-198' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>If you only have a reference to an <code>InProgress</code>, you can't use the easy builder.
+This exists so you can make your own.</p>
+</div><h4 id='method.transact_terms' class="method"><span id='transact_terms.v' class='invisible'><code>pub fn <a href='#method.transact_terms' class='fnname'>transact_terms</a>&lt;I&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;terms: I, <br>&nbsp;&nbsp;&nbsp;&nbsp;tempid_set: <a class="struct" href="../edn/intern_set/struct.InternSet.html" title="struct edn::intern_set::InternSet">InternSet</a>&lt;<a class="enum" href="../edn/entities/enum.TempId.html" title="enum edn::entities::TempId">TempId</a>&gt;<br>) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="struct" href="../mentat_core/tx_report/struct.TxReport.html" title="struct mentat_core::tx_report::TxReport">TxReport</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html" title="trait core::iter::traits::IntoIterator">IntoIterator</a>&lt;Item = <a class="type" href="../mentat_db/internal_types/type.TermWithTempIds.html" title="type mentat_db::internal_types::TermWithTempIds">TermWithTempIds</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#200-217' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.transact_entities' class="method"><span id='transact_entities.v' class='invisible'><code>pub fn <a href='#method.transact_entities' class='fnname'>transact_entities</a>&lt;I, V:&nbsp;<a class="trait" href="../mentat_db/types/trait.TransactableValue.html" title="trait mentat_db::types::TransactableValue">TransactableValue</a>&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;entities: I<br>) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="struct" href="../mentat_core/tx_report/struct.TxReport.html" title="struct mentat_core::tx_report::TxReport">TxReport</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html" title="trait core::iter::traits::IntoIterator">IntoIterator</a>&lt;Item = <a class="enum" href="../edn/entities/enum.Entity.html" title="enum edn::entities::Entity">Entity</a>&lt;V&gt;&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#219-243' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.transact' class="method"><span id='transact.v' class='invisible'><code>pub fn <a href='#method.transact' class='fnname'>transact</a>&lt;B&gt;(&amp;mut self, transaction: B) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="struct" href="../mentat_core/tx_report/struct.TxReport.html" title="struct mentat_core::tx_report::TxReport">TxReport</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;B: <a class="trait" href="https://doc.rust-lang.org/nightly/core/borrow/trait.Borrow.html" title="trait core::borrow::Borrow">Borrow</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#245-248' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.import' class="method"><span id='import.v' class='invisible'><code>pub fn <a href='#method.import' class='fnname'>import</a>&lt;P&gt;(&amp;mut self, path: P) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="struct" href="../mentat_core/tx_report/struct.TxReport.html" title="struct mentat_core::tx_report::TxReport">TxReport</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;P: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html" title="trait core::convert::AsRef">AsRef</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/std/path/struct.Path.html" title="struct std::path::Path">Path</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#250-256' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.rollback' class="method"><span id='rollback.v' class='invisible'><code>pub fn <a href='#method.rollback' class='fnname'>rollback</a>(self) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#258-260' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.commit' class="method"><span id='commit.v' class='invisible'><code>pub fn <a href='#method.commit' class='fnname'>commit</a>(self) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#262-295' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.cache' class="method"><span id='cache.v-1' class='invisible'><code>pub fn <a href='#method.cache' class='fnname'>cache</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;attribute: &amp;<a class="struct" href="../mentat_transaction/query/struct.Keyword.html" title="struct mentat_transaction::query::Keyword">Keyword</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;cache_direction: <a class="enum" href="../mentat_transaction/enum.CacheDirection.html" title="enum mentat_transaction::CacheDirection">CacheDirection</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;cache_action: <a class="enum" href="../mentat_transaction/enum.CacheAction.html" title="enum mentat_transaction::CacheAction">CacheAction</a><br>) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#297-318' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.last_tx_id' class="method"><span id='last_tx_id.v' class='invisible'><code>pub fn <a href='#method.last_tx_id' class='fnname'>last_tx_id</a>(&amp;self) -&gt; <a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#320-322' title='goto source code'>[src]</a></span></h4>
+</div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Queryable' class='impl'><span class='in-band'><code>impl&lt;'a, 'c&gt; <a class="trait" href="../mentat_transaction/trait.Queryable.html" title="trait mentat_transaction::Queryable">Queryable</a> for <a class="struct" href="../mentat_transaction/struct.InProgress.html" title="struct mentat_transaction::InProgress">InProgress</a>&lt;'a, 'c&gt;</code><a href='#impl-Queryable' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#372-421' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.q_once' class="method"><span id='q_once.v' class='invisible'><code>fn <a href='../mentat_transaction/trait.Queryable.html#tymethod.q_once' class='fnname'>q_once</a>&lt;T&gt;(&amp;self, query: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>, inputs: T) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="struct" href="../mentat_transaction/query/struct.QueryOutput.html" title="struct mentat_transaction::query::QueryOutput">QueryOutput</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../mentat_transaction/query/struct.QueryInputs.html" title="struct mentat_transaction::query::QueryInputs">QueryInputs</a>&gt;&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#373-388' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.q_prepare' class="method"><span id='q_prepare.v' class='invisible'><code>fn <a href='../mentat_transaction/trait.Queryable.html#tymethod.q_prepare' class='fnname'>q_prepare</a>&lt;T&gt;(&amp;self, query: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>, inputs: T) -&gt; <a class="type" href="../mentat_transaction/query/type.PreparedResult.html" title="type mentat_transaction::query::PreparedResult">PreparedResult</a> <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../mentat_transaction/query/struct.QueryInputs.html" title="struct mentat_transaction::query::QueryInputs">QueryInputs</a>&gt;&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#390-398' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.q_explain' class="method"><span id='q_explain.v' class='invisible'><code>fn <a href='../mentat_transaction/trait.Queryable.html#tymethod.q_explain' class='fnname'>q_explain</a>&lt;T&gt;(&amp;self, query: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>, inputs: T) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="enum" href="../mentat_transaction/query/enum.QueryExplanation.html" title="enum mentat_transaction::query::QueryExplanation">QueryExplanation</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../mentat_transaction/query/struct.QueryInputs.html" title="struct mentat_transaction::query::QueryInputs">QueryInputs</a>&gt;&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#400-408' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.lookup_values_for_attribute' class="method"><span id='lookup_values_for_attribute.v' class='invisible'><code>fn <a href='../mentat_transaction/trait.Queryable.html#tymethod.lookup_values_for_attribute' class='fnname'>lookup_values_for_attribute</a>&lt;E&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;entity: E, <br>&nbsp;&nbsp;&nbsp;&nbsp;attribute: &amp;<a class="struct" href="../mentat_transaction/query/struct.Keyword.html" title="struct mentat_transaction::query::Keyword">Keyword</a><br>) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>&gt;&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;E: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#410-414' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.lookup_value_for_attribute' class="method"><span id='lookup_value_for_attribute.v' class='invisible'><code>fn <a href='../mentat_transaction/trait.Queryable.html#tymethod.lookup_value_for_attribute' class='fnname'>lookup_value_for_attribute</a>&lt;E&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;entity: E, <br>&nbsp;&nbsp;&nbsp;&nbsp;attribute: &amp;<a class="struct" href="../mentat_transaction/query/struct.Keyword.html" title="struct mentat_transaction::query::Keyword">Keyword</a><br>) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>&gt;&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;E: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#416-420' title='goto source code'>[src]</a></span></h4>
+</div><h3 id='impl-Pullable' class='impl'><span class='in-band'><code>impl&lt;'a, 'c&gt; <a class="trait" href="../mentat_transaction/trait.Pullable.html" title="trait mentat_transaction::Pullable">Pullable</a> for <a class="struct" href="../mentat_transaction/struct.InProgress.html" title="struct mentat_transaction::InProgress">InProgress</a>&lt;'a, 'c&gt;</code><a href='#impl-Pullable' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#423-436' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.pull_attributes_for_entities' class="method"><span id='pull_attributes_for_entities.v' class='invisible'><code>fn <a href='../mentat_transaction/trait.Pullable.html#tymethod.pull_attributes_for_entities' class='fnname'>pull_attributes_for_entities</a>&lt;E, A&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;entities: E, <br>&nbsp;&nbsp;&nbsp;&nbsp;attributes: A<br>) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/btree/map/struct.BTreeMap.html" title="struct alloc::btree::map::BTreeMap">BTreeMap</a>&lt;<a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>, <a class="type" href="../edn/value_rc/type.ValueRc.html" title="type edn::value_rc::ValueRc">ValueRc</a>&lt;<a class="struct" href="../core_traits/struct.StructuredMap.html" title="struct core_traits::StructuredMap">StructuredMap</a>&gt;&gt;&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;E: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html" title="trait core::iter::traits::IntoIterator">IntoIterator</a>&lt;Item = <a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;A: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html" title="trait core::iter::traits::IntoIterator">IntoIterator</a>&lt;Item = <a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#424-429' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.pull_attributes_for_entity' class="method"><span id='pull_attributes_for_entity.v' class='invisible'><code>fn <a href='../mentat_transaction/trait.Pullable.html#tymethod.pull_attributes_for_entity' class='fnname'>pull_attributes_for_entity</a>&lt;A&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;entity: <a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;attributes: A<br>) -&gt; <a class="type" href="../public_traits/errors/type.Result.html" title="type public_traits::errors::Result">Result</a>&lt;<a class="struct" href="../core_traits/struct.StructuredMap.html" title="struct core_traits::StructuredMap">StructuredMap</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;A: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html" title="trait core::iter::traits::IntoIterator">IntoIterator</a>&lt;Item = <a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#431-435' title='goto source code'>[src]</a></span></h4>
+</div><h3 id='impl-HasSchema' class='impl'><span class='in-band'><code>impl&lt;'a, 'c&gt; <a class="trait" href="../mentat_core/trait.HasSchema.html" title="trait mentat_core::HasSchema">HasSchema</a> for <a class="struct" href="../mentat_transaction/struct.InProgress.html" title="struct mentat_transaction::InProgress">InProgress</a>&lt;'a, 'c&gt;</code><a href='#impl-HasSchema' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#474-508' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.entid_for_type' class="method"><span id='entid_for_type.v' class='invisible'><code>fn <a href='../mentat_core/trait.HasSchema.html#tymethod.entid_for_type' class='fnname'>entid_for_type</a>(&amp;self, t: <a class="enum" href="../core_traits/enum.ValueType.html" title="enum core_traits::ValueType">ValueType</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../core_traits/struct.KnownEntid.html" title="struct core_traits::KnownEntid">KnownEntid</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#475-477' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.get_ident' class="method"><span id='get_ident.v' class='invisible'><code>fn <a href='../mentat_core/trait.HasSchema.html#tymethod.get_ident' class='fnname'>get_ident</a>&lt;T&gt;(&amp;self, x: T) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="struct" href="../mentat_transaction/query/struct.Keyword.html" title="struct mentat_transaction::query::Keyword">Keyword</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#479-481' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.get_entid' class="method"><span id='get_entid.v' class='invisible'><code>fn <a href='../mentat_core/trait.HasSchema.html#tymethod.get_entid' class='fnname'>get_entid</a>(&amp;self, x: &amp;<a class="struct" href="../mentat_transaction/query/struct.Keyword.html" title="struct mentat_transaction::query::Keyword">Keyword</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../core_traits/struct.KnownEntid.html" title="struct core_traits::KnownEntid">KnownEntid</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#483-485' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.attribute_for_entid' class="method"><span id='attribute_for_entid.v' class='invisible'><code>fn <a href='../mentat_core/trait.HasSchema.html#tymethod.attribute_for_entid' class='fnname'>attribute_for_entid</a>&lt;T&gt;(&amp;self, x: T) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="struct" href="../core_traits/struct.Attribute.html" title="struct core_traits::Attribute">Attribute</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#487-489' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.attribute_for_ident' class="method"><span id='attribute_for_ident.v' class='invisible'><code>fn <a href='../mentat_core/trait.HasSchema.html#tymethod.attribute_for_ident' class='fnname'>attribute_for_ident</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;ident: &amp;<a class="struct" href="../mentat_transaction/query/struct.Keyword.html" title="struct mentat_transaction::query::Keyword">Keyword</a><br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a>&amp;<a class="struct" href="../core_traits/struct.Attribute.html" title="struct core_traits::Attribute">Attribute</a>, <a class="struct" href="../core_traits/struct.KnownEntid.html" title="struct core_traits::KnownEntid">KnownEntid</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#491-493' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.is_attribute' class="method"><span id='is_attribute.v' class='invisible'><code>fn <a href='../mentat_core/trait.HasSchema.html#tymethod.is_attribute' class='fnname'>is_attribute</a>&lt;T&gt;(&amp;self, x: T) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a> <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#496-498' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Return true if the provided entid identifies an attribute in this schema.</p>
+</div><h4 id='method.identifies_attribute' class="method"><span id='identifies_attribute.v' class='invisible'><code>fn <a href='../mentat_core/trait.HasSchema.html#tymethod.identifies_attribute' class='fnname'>identifies_attribute</a>(&amp;self, x: &amp;<a class="struct" href="../mentat_transaction/query/struct.Keyword.html" title="struct mentat_transaction::query::Keyword">Keyword</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#501-503' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Return true if the provided ident identifies an attribute in this schema.</p>
+</div><h4 id='method.component_attributes' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></span></div><div class="content hidden"><h3 class="important">Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></h3><code class="content"><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></span><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a mut [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></span></code></div></div><span id='component_attributes.v' class='invisible'><code>fn <a href='../mentat_core/trait.HasSchema.html#tymethod.component_attributes' class='fnname'>component_attributes</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a><a class="type" href="../core_traits/type.Entid.html" title="type core_traits::Entid">Entid</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_transaction/lib.rs.html#505-507' title='goto source code'>[src]</a></span></h4>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mentat_transaction";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

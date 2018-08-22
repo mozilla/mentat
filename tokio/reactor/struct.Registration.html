@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Registration` struct in crate `tokio`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Registration">
+
+    <title>tokio::reactor::Registration - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Registration</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.new">new</a><a href="#method.register">register</a><a href="#method.deregister">deregister</a><a href="#method.register_with">register_with</a><a href="#method.poll_read_ready">poll_read_ready</a><a href="#method.take_read_ready">take_read_ready</a><a href="#method.poll_write_ready">poll_write_ready</a><a href="#method.take_write_ready">take_write_ready</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a><a href="#impl-Sync">Sync</a><a href="#impl-Send">Send</a></div></div><p class='location'><a href='../index.html'>tokio</a>::<wbr><a href='index.html'>reactor</a></p><script>window.sidebarCurrent = {name: 'Registration', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>tokio</a>::<wbr><a href='index.html'>reactor</a>::<wbr><a class="struct" href=''>Registration</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#46-58' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Registration { /* fields omitted */ }</pre><div class='docblock'><p>Associates an I/O resource with the reactor instance that drives it.</p>
+<p>A registration represents an I/O resource registered with a Reactor such
+that it will receive task notifications on readiness. This is the lowest
+level API for integrating with a reactor.</p>
+<p>The association between an I/O resource is made by calling <a href="#method.register"><code>register</code></a>.
+Once the association is established, it remains established until the
+registration instance is dropped. Subsequent calls to <a href="#method.register"><code>register</code></a> are
+no-ops.</p>
+<p>A registration instance represents two separate readiness streams. One for
+the read readiness and one for write readiness. These streams are
+independent and can be consumed from separate tasks.</p>
+<p><strong>Note</strong>: while <code>Registration</code> is <code>Sync</code>, the caller must ensure that there
+are at most two tasks that use a registration instance concurrently. One
+task for <a href="#method.poll_read_ready%60%5D"><code>poll_read_ready</code></a> and one task for <a href="#method.poll_write_ready%60%5D"><code>poll_write_ready</code></a>. While
+violating this requirement is &quot;safe&quot; from a Rust memory safety point of
+view, it will result in unexpected behavior in the form of lost
+notifications and tasks hanging.</p>
+<h2 id="platform-specific-events" class="section-header"><a href="#platform-specific-events">Platform-specific events</a></h2>
+<p><code>Registration</code> also allows receiving platform-specific <code>mio::Ready</code> events.
+These events are included as part of the read readiness event stream. The
+write readiness event stream is only for <code>Ready::writable()</code> events.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl <a class="struct" href="../../tokio/reactor/struct.Registration.html" title="struct tokio::reactor::Registration">Registration</a></code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#91-440' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class="method"><span id='new.v' class='invisible'><code>pub fn <a href='#method.new' class='fnname'>new</a>() -&gt; <a class="struct" href="../../tokio/reactor/struct.Registration.html" title="struct tokio::reactor::Registration">Registration</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#96-101' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Create a new <code>Registration</code>.</p>
+<p>This registration is not associated with a Reactor instance. Call
+<code>register</code> to establish the association.</p>
+</div><h4 id='method.register' class="method"><span id='register.v' class='invisible'><code>pub fn <a href='#method.register' class='fnname'>register</a>&lt;T&gt;(&amp;self, io: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>T) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="../../mio/event_imp/trait.Evented.html" title="trait mio::event_imp::Evented">Evented</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#117-121' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Register the I/O resource with the default reactor.</p>
+<p>This function is safe to call concurrently and repeatedly. However, only
+the first call will establish the registration. Subsequent calls will be
+no-ops.</p>
+<h1 id="return" class="section-header"><a href="#return">Return</a></h1>
+<p>If the registration happened successfully, <code>Ok(true)</code> is returned.</p>
+<p>If an I/O resource has previously been successfully registered,
+<code>Ok(false)</code> is returned.</p>
+<p>If an error is encountered during registration, <code>Err</code> is returned.</p>
+</div><h4 id='method.deregister' class="method"><span id='deregister.v' class='invisible'><code>pub fn <a href='#method.deregister' class='fnname'>deregister</a>&lt;T&gt;(&amp;mut self, io: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>T) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="../../mio/event_imp/trait.Evented.html" title="trait mio::event_imp::Evented">Evented</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#139-150' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Deregister the I/O resource from the reactor it is associated with.</p>
+<p>This function must be called before the I/O resource associated with the
+registration is dropped.</p>
+<p>Note that deregistering does not guarantee that the I/O resource can be
+registered with a different reactor. Some I/O resource types can only be
+associated with a single reactor instance for their lifetime.</p>
+<h1 id="return-1" class="section-header"><a href="#return-1">Return</a></h1>
+<p>If the deregistration was successful, <code>Ok</code> is returned. Any calls to
+<code>Reactor::turn</code> that happen after a successful call to <code>deregister</code> will
+no longer result in notifications getting sent for this registration.</p>
+<p><code>Err</code> is returned if an error is encountered.</p>
+</div><h4 id='method.register_with' class="method"><span id='register_with.v' class='invisible'><code>pub fn <a href='#method.register_with' class='fnname'>register_with</a>&lt;T&gt;(&amp;self, io: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>T, handle: &amp;<a class="struct" href="../../tokio/reactor/struct.Handle.html" title="struct tokio::reactor::Handle">Handle</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="../../mio/event_imp/trait.Evented.html" title="trait mio::event_imp::Evented">Evented</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#164-173' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Register the I/O resource with the specified reactor.</p>
+<p>This function is safe to call concurrently and repeatedly. However, only
+the first call will establish the registration. Subsequent calls will be
+no-ops.</p>
+<p>If the registration happened successfully, <code>Ok(true)</code> is returned.</p>
+<p>If an I/O resource has previously been successfully registered,
+<code>Ok(false)</code> is returned.</p>
+<p>If an error is encountered during registration, <code>Err</code> is returned.</p>
+</div><h4 id='method.poll_read_ready' class="method"><span id='poll_read_ready.v' class='invisible'><code>pub fn <a href='#method.poll_read_ready' class='fnname'>poll_read_ready</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../../tokio/prelude/enum.Async.html" title="enum tokio::prelude::Async">Async</a>&lt;<a class="struct" href="../../mio/event_imp/struct.Ready.html" title="struct mio::event_imp::Ready">Ready</a>&gt;, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#281-287' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Poll for events on the I/O resource's read readiness stream.</p>
+<p>If the I/O resource receives a new read readiness event since the last
+call to <code>poll_read_ready</code>, it is returned. If it has not, the current
+task is notified once a new event is received.</p>
+<p>All events except <code>HUP</code> are <a href="https://docs.rs/mio/0.6/mio/struct.Poll.html#edge-triggered-and-level-triggered">edge-triggered</a>. Once <code>HUP</code> is returned,
+the function will always return <code>Ready(HUP)</code>. This should be treated as
+the end of the readiness stream.</p>
+<p>Ensure that <a href="#method.register"><code>register</code></a> has been called first.</p>
+<h1 id="return-value" class="section-header"><a href="#return-value">Return value</a></h1>
+<p>There are several possible return values:</p>
+<ul>
+<li>
+<p><code>Ok(Async::Ready(readiness))</code> means that the I/O resource has received
+a new readiness event. The readiness value is included.</p>
+</li>
+<li>
+<p><code>Ok(NotReady)</code> means that no new readiness events have been received
+since the last call to <code>poll_read_ready</code>.</p>
+</li>
+<li>
+<p><code>Err(err)</code> means that the registration has encountered an error. This
+error either represents a permanent internal error <strong>or</strong> the fact
+that <a href="#method.register"><code>register</code></a> was not called first.</p>
+</li>
+</ul>
+<h1 id="panics" class="section-header"><a href="#panics">Panics</a></h1>
+<p>This function will panic if called from outside of a task context.</p>
+</div><h4 id='method.take_read_ready' class="method"><span id='take_read_ready.v' class='invisible'><code>pub fn <a href='#method.take_read_ready' class='fnname'>take_read_ready</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../../mio/event_imp/struct.Ready.html" title="struct mio::event_imp::Ready">Ready</a>&gt;, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#309-312' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Consume any pending read readiness event.</p>
+<p>This function is identical to <a href="#method.poll_read_ready"><code>poll_read_ready</code></a> <strong>except</strong> that it
+will not notify the current task when a new event is received. As such,
+it is safe to call this function from outside of a task context.</p>
+</div><h4 id='method.poll_write_ready' class="method"><span id='poll_write_ready.v' class='invisible'><code>pub fn <a href='#method.poll_write_ready' class='fnname'>poll_write_ready</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../../tokio/prelude/enum.Async.html" title="enum tokio::prelude::Async">Async</a>&lt;<a class="struct" href="../../mio/event_imp/struct.Ready.html" title="struct mio::event_imp::Ready">Ready</a>&gt;, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#346-352' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Poll for events on the I/O resource's write readiness stream.</p>
+<p>If the I/O resource receives a new write readiness event since the last
+call to <code>poll_write_ready</code>, it is returned. If it has not, the current
+task is notified once a new event is received.</p>
+<p>All events except <code>HUP</code> are <a href="https://docs.rs/mio/0.6/mio/struct.Poll.html#edge-triggered-and-level-triggered">edge-triggered</a>. Once <code>HUP</code> is returned,
+the function will always return <code>Ready(HUP)</code>. This should be treated as
+the end of the readiness stream.</p>
+<p>Ensure that <a href="#method.register"><code>register</code></a> has been called first.</p>
+<h1 id="return-value-1" class="section-header"><a href="#return-value-1">Return value</a></h1>
+<p>There are several possible return values:</p>
+<ul>
+<li>
+<p><code>Ok(Async::Ready(readiness))</code> means that the I/O resource has received
+a new readiness event. The readiness value is included.</p>
+</li>
+<li>
+<p><code>Ok(NotReady)</code> means that no new readiness events have been received
+since the last call to <code>poll_write_ready</code>.</p>
+</li>
+<li>
+<p><code>Err(err)</code> means that the registration has encountered an error. This
+error either represents a permanent internal error <strong>or</strong> the fact
+that <a href="#method.register"><code>register</code></a> was not called first.</p>
+</li>
+</ul>
+<h1 id="panics-1" class="section-header"><a href="#panics-1">Panics</a></h1>
+<p>This function will panic if called from outside of a task context.</p>
+</div><h4 id='method.take_write_ready' class="method"><span id='take_write_ready.v' class='invisible'><code>pub fn <a href='#method.take_write_ready' class='fnname'>take_write_ready</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../../mio/event_imp/struct.Ready.html" title="struct mio::event_imp::Ready">Ready</a>&gt;, <a class="struct" href="../../tokio/io/struct.Error.html" title="struct tokio::io::Error">Error</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#374-376' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Consume any pending write readiness event.</p>
+<p>This function is identical to <a href="#method.poll_write_ready"><code>poll_write_ready</code></a> <strong>except</strong> that it
+will not notify the current task when a new event is received. As such,
+it is safe to call this function from outside of a task context.</p>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../../tokio/reactor/struct.Registration.html" title="struct tokio::reactor::Registration">Registration</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#45' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Error.html" title="struct core::fmt::Error">Error</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#45' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-Sync' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="struct" href="../../tokio/reactor/struct.Registration.html" title="struct tokio::reactor::Registration">Registration</a></code><a href='#impl-Sync' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#443' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div><h3 id='impl-Send' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="struct" href="../../tokio/reactor/struct.Registration.html" title="struct tokio::reactor::Registration">Registration</a></code><a href='#impl-Send' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_reactor/registration.rs.html#442' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

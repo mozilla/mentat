@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Error` enum in crate `rusqlite`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Error">
+
+    <title>rusqlite::Error - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc enum">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Enum Error</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.SqliteFailure">SqliteFailure</a><a href="#variant.SqliteSingleThreadedMode">SqliteSingleThreadedMode</a><a href="#variant.FromSqlConversionFailure">FromSqlConversionFailure</a><a href="#variant.IntegralValueOutOfRange">IntegralValueOutOfRange</a><a href="#variant.Utf8Error">Utf8Error</a><a href="#variant.NulError">NulError</a><a href="#variant.InvalidParameterName">InvalidParameterName</a><a href="#variant.InvalidPath">InvalidPath</a><a href="#variant.ExecuteReturnedResults">ExecuteReturnedResults</a><a href="#variant.QueryReturnedNoRows">QueryReturnedNoRows</a><a href="#variant.InvalidColumnIndex">InvalidColumnIndex</a><a href="#variant.InvalidColumnName">InvalidColumnName</a><a href="#variant.InvalidColumnType">InvalidColumnType</a><a href="#variant.StatementChangedRows">StatementChangedRows</a><a href="#variant.ToSqlConversionFailure">ToSqlConversionFailure</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a><a href="#impl-From%3CUtf8Error%3E">From&lt;Utf8Error&gt;</a><a href="#impl-From%3CNulError%3E">From&lt;NulError&gt;</a><a href="#impl-Display">Display</a><a href="#impl-Error">Error</a></div></div><p class='location'><a href='index.html'>rusqlite</a></p><script>window.sidebarCurrent = {name: 'Error', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Enum <a href='index.html'>rusqlite</a>::<wbr><a class="enum" href=''>Error</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/rusqlite/error.rs.html#16-80' title='goto source code'>[src]</a></span></h1>
+<pre class='rust enum'>pub enum Error {
+    SqliteFailure(<a class="struct" href="../libsqlite3_sys/error/struct.Error.html" title="struct libsqlite3_sys::error::Error">Error</a>,&nbsp;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;),
+    SqliteSingleThreadedMode,
+    FromSqlConversionFailure(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>,&nbsp;<a class="enum" href="../rusqlite/types/enum.Type.html" title="enum rusqlite::types::Type">Type</a>,&nbsp;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;<a class="trait" href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html" title="trait std::error::Error">Error</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a>&gt;),
+    IntegralValueOutOfRange(<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>,&nbsp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>),
+    Utf8Error(<a class="struct" href="https://doc.rust-lang.org/nightly/core/str/struct.Utf8Error.html" title="struct core::str::Utf8Error">Utf8Error</a>),
+    NulError(<a class="struct" href="https://doc.rust-lang.org/nightly/std/ffi/c_str/struct.NulError.html" title="struct std::ffi::c_str::NulError">NulError</a>),
+    InvalidParameterName(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    InvalidPath(<a class="struct" href="https://doc.rust-lang.org/nightly/std/path/struct.PathBuf.html" title="struct std::path::PathBuf">PathBuf</a>),
+    ExecuteReturnedResults,
+    QueryReturnedNoRows,
+    InvalidColumnIndex(<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>),
+    InvalidColumnName(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    InvalidColumnType(<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>,&nbsp;<a class="enum" href="../rusqlite/types/enum.Type.html" title="enum rusqlite::types::Type">Type</a>),
+    StatementChangedRows(<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>),
+    ToSqlConversionFailure(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;<a class="trait" href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html" title="trait std::error::Error">Error</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a>&gt;),
+}</pre><div class='docblock'><p>Enum listing possible errors from rusqlite.</p>
+</div><h2 id='variants' class='variants small-section-header'>
+                   Variants<a href='#variants' class='anchor'></a></h2>
+<span id="variant.SqliteFailure" class="variant small-section-header"><a href="#variant.SqliteFailure" class="anchor field"></a><span id='SqliteFailure.v' class='invisible'><code>SqliteFailure(<a class="struct" href="../libsqlite3_sys/error/struct.Error.html" title="struct libsqlite3_sys::error::Error">Error</a>,&nbsp;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;)</code></span></span><div class='docblock'><p>An error from an underlying SQLite call.</p>
+</div><span id="variant.SqliteSingleThreadedMode" class="variant small-section-header"><a href="#variant.SqliteSingleThreadedMode" class="anchor field"></a><span id='SqliteSingleThreadedMode.v' class='invisible'><code>SqliteSingleThreadedMode</code></span></span><div class='docblock'><p>Error reported when attempting to open a connection when SQLite was configured to
+allow single-threaded use only.</p>
+</div><span id="variant.FromSqlConversionFailure" class="variant small-section-header"><a href="#variant.FromSqlConversionFailure" class="anchor field"></a><span id='FromSqlConversionFailure.v' class='invisible'><code>FromSqlConversionFailure(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>,&nbsp;<a class="enum" href="../rusqlite/types/enum.Type.html" title="enum rusqlite::types::Type">Type</a>,&nbsp;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;<a class="trait" href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html" title="trait std::error::Error">Error</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a>&gt;)</code></span></span><div class='docblock'><p>Error when the value of a particular column is requested, but it cannot be converted to
+the requested Rust type.</p>
+</div><span id="variant.IntegralValueOutOfRange" class="variant small-section-header"><a href="#variant.IntegralValueOutOfRange" class="anchor field"></a><span id='IntegralValueOutOfRange.v' class='invisible'><code>IntegralValueOutOfRange(<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>,&nbsp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>)</code></span></span><div class='docblock'><p>Error when SQLite gives us an integral value outside the range of the requested type (e.g.,
+trying to get the value 1000 into a <code>u8</code>).  The associated <code>c_int</code> is the column index, and
+the associated <code>i64</code> is the value returned by SQLite.</p>
+</div><span id="variant.Utf8Error" class="variant small-section-header"><a href="#variant.Utf8Error" class="anchor field"></a><span id='Utf8Error.v' class='invisible'><code>Utf8Error(<a class="struct" href="https://doc.rust-lang.org/nightly/core/str/struct.Utf8Error.html" title="struct core::str::Utf8Error">Utf8Error</a>)</code></span></span><div class='docblock'><p>Error converting a string to UTF-8.</p>
+</div><span id="variant.NulError" class="variant small-section-header"><a href="#variant.NulError" class="anchor field"></a><span id='NulError.v' class='invisible'><code>NulError(<a class="struct" href="https://doc.rust-lang.org/nightly/std/ffi/c_str/struct.NulError.html" title="struct std::ffi::c_str::NulError">NulError</a>)</code></span></span><div class='docblock'><p>Error converting a string to a C-compatible string because it contained an embedded nul.</p>
+</div><span id="variant.InvalidParameterName" class="variant small-section-header"><a href="#variant.InvalidParameterName" class="anchor field"></a><span id='InvalidParameterName.v' class='invisible'><code>InvalidParameterName(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><div class='docblock'><p>Error when using SQL named parameters and passing a parameter name not present in the SQL.</p>
+</div><span id="variant.InvalidPath" class="variant small-section-header"><a href="#variant.InvalidPath" class="anchor field"></a><span id='InvalidPath.v' class='invisible'><code>InvalidPath(<a class="struct" href="https://doc.rust-lang.org/nightly/std/path/struct.PathBuf.html" title="struct std::path::PathBuf">PathBuf</a>)</code></span></span><div class='docblock'><p>Error converting a file path to a string.</p>
+</div><span id="variant.ExecuteReturnedResults" class="variant small-section-header"><a href="#variant.ExecuteReturnedResults" class="anchor field"></a><span id='ExecuteReturnedResults.v' class='invisible'><code>ExecuteReturnedResults</code></span></span><div class='docblock'><p>Error returned when an <code>execute</code> call returns rows.</p>
+</div><span id="variant.QueryReturnedNoRows" class="variant small-section-header"><a href="#variant.QueryReturnedNoRows" class="anchor field"></a><span id='QueryReturnedNoRows.v' class='invisible'><code>QueryReturnedNoRows</code></span></span><div class='docblock'><p>Error when a query that was expected to return at least one row (e.g., for <code>query_row</code>)
+did not return any.</p>
+</div><span id="variant.InvalidColumnIndex" class="variant small-section-header"><a href="#variant.InvalidColumnIndex" class="anchor field"></a><span id='InvalidColumnIndex.v' class='invisible'><code>InvalidColumnIndex(<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>)</code></span></span><div class='docblock'><p>Error when the value of a particular column is requested, but the index is out of range
+for the statement.</p>
+</div><span id="variant.InvalidColumnName" class="variant small-section-header"><a href="#variant.InvalidColumnName" class="anchor field"></a><span id='InvalidColumnName.v' class='invisible'><code>InvalidColumnName(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><div class='docblock'><p>Error when the value of a named column is requested, but no column matches the name
+for the statement.</p>
+</div><span id="variant.InvalidColumnType" class="variant small-section-header"><a href="#variant.InvalidColumnType" class="anchor field"></a><span id='InvalidColumnType.v' class='invisible'><code>InvalidColumnType(<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>,&nbsp;<a class="enum" href="../rusqlite/types/enum.Type.html" title="enum rusqlite::types::Type">Type</a>)</code></span></span><div class='docblock'><p>Error when the value of a particular column is requested, but the type of the result in
+that column cannot be converted to the requested Rust type.</p>
+</div><span id="variant.StatementChangedRows" class="variant small-section-header"><a href="#variant.StatementChangedRows" class="anchor field"></a><span id='StatementChangedRows.v' class='invisible'><code>StatementChangedRows(<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>)</code></span></span><div class='docblock'><p>Error when a query that was expected to insert one row did not insert any or insert many.</p>
+</div><span id="variant.ToSqlConversionFailure" class="variant small-section-header"><a href="#variant.ToSqlConversionFailure" class="anchor field"></a><span id='ToSqlConversionFailure.v' class='invisible'><code>ToSqlConversionFailure(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;<a class="trait" href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html" title="trait std::error::Error">Error</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a>&gt;)</code></span></span><div class='docblock'><p>Error available for the implementors of the <code>ToSql</code> trait.</p>
+</div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="enum" href="../rusqlite/enum.Error.html" title="enum rusqlite::Error">Error</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#14' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#14' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-From%3CUtf8Error%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/core/str/struct.Utf8Error.html" title="struct core::str::Utf8Error">Utf8Error</a>&gt; for <a class="enum" href="../rusqlite/enum.Error.html" title="enum rusqlite::Error">Error</a></code><a href='#impl-From%3CUtf8Error%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#82-86' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from' class="method"><span id='from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(err: <a class="struct" href="https://doc.rust-lang.org/nightly/core/str/struct.Utf8Error.html" title="struct core::str::Utf8Error">Utf8Error</a>) -&gt; <a class="enum" href="../rusqlite/enum.Error.html" title="enum rusqlite::Error">Error</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#83-85' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CNulError%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/std/ffi/c_str/struct.NulError.html" title="struct std::ffi::c_str::NulError">NulError</a>&gt; for <a class="enum" href="../rusqlite/enum.Error.html" title="enum rusqlite::Error">Error</a></code><a href='#impl-From%3CNulError%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#88-92' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-1' class="method"><span id='from.v-1' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(err: <a class="struct" href="https://doc.rust-lang.org/nightly/std/ffi/c_str/struct.NulError.html" title="struct std::ffi::c_str::NulError">NulError</a>) -&gt; <a class="enum" href="../rusqlite/enum.Error.html" title="enum rusqlite::Error">Error</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#89-91' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-Display' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a> for <a class="enum" href="../rusqlite/enum.Error.html" title="enum rusqlite::Error">Error</a></code><a href='#impl-Display' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#94-137' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt-1' class="method"><span id='fmt.v-1' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#95-136' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-Error' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html" title="trait std::error::Error">Error</a> for <a class="enum" href="../rusqlite/enum.Error.html" title="enum rusqlite::Error">Error</a></code><a href='#impl-Error' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#139-192' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.description' class="method"><span id='description.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/std/error/trait.Error.html#tymethod.description' class='fnname'>description</a>(&amp;self) -&gt; &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#140-164' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>A short description of the error. <a href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html#tymethod.description">Read more</a></p>
+</div><h4 id='method.cause' class="method"><span id='cause.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/std/error/trait.Error.html#method.cause' class='fnname'>cause</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="trait" href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html" title="trait std::error::Error">Error</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/error.rs.html#166-191' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>The lower-level cause of this error, if any. <a href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html#method.cause">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "rusqlite";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

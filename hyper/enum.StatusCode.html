@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `StatusCode` enum in crate `hyper`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, StatusCode">
+
+    <title>hyper::StatusCode - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc enum">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Enum StatusCode</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.Continue">Continue</a><a href="#variant.SwitchingProtocols">SwitchingProtocols</a><a href="#variant.Processing">Processing</a><a href="#variant.Ok">Ok</a><a href="#variant.Created">Created</a><a href="#variant.Accepted">Accepted</a><a href="#variant.NonAuthoritativeInformation">NonAuthoritativeInformation</a><a href="#variant.NoContent">NoContent</a><a href="#variant.ResetContent">ResetContent</a><a href="#variant.PartialContent">PartialContent</a><a href="#variant.MultiStatus">MultiStatus</a><a href="#variant.AlreadyReported">AlreadyReported</a><a href="#variant.ImUsed">ImUsed</a><a href="#variant.MultipleChoices">MultipleChoices</a><a href="#variant.MovedPermanently">MovedPermanently</a><a href="#variant.Found">Found</a><a href="#variant.SeeOther">SeeOther</a><a href="#variant.NotModified">NotModified</a><a href="#variant.UseProxy">UseProxy</a><a href="#variant.TemporaryRedirect">TemporaryRedirect</a><a href="#variant.PermanentRedirect">PermanentRedirect</a><a href="#variant.BadRequest">BadRequest</a><a href="#variant.Unauthorized">Unauthorized</a><a href="#variant.PaymentRequired">PaymentRequired</a><a href="#variant.Forbidden">Forbidden</a><a href="#variant.NotFound">NotFound</a><a href="#variant.MethodNotAllowed">MethodNotAllowed</a><a href="#variant.NotAcceptable">NotAcceptable</a><a href="#variant.ProxyAuthenticationRequired">ProxyAuthenticationRequired</a><a href="#variant.RequestTimeout">RequestTimeout</a><a href="#variant.Conflict">Conflict</a><a href="#variant.Gone">Gone</a><a href="#variant.LengthRequired">LengthRequired</a><a href="#variant.PreconditionFailed">PreconditionFailed</a><a href="#variant.PayloadTooLarge">PayloadTooLarge</a><a href="#variant.UriTooLong">UriTooLong</a><a href="#variant.UnsupportedMediaType">UnsupportedMediaType</a><a href="#variant.RangeNotSatisfiable">RangeNotSatisfiable</a><a href="#variant.ExpectationFailed">ExpectationFailed</a><a href="#variant.ImATeapot">ImATeapot</a><a href="#variant.MisdirectedRequest">MisdirectedRequest</a><a href="#variant.UnprocessableEntity">UnprocessableEntity</a><a href="#variant.Locked">Locked</a><a href="#variant.FailedDependency">FailedDependency</a><a href="#variant.UpgradeRequired">UpgradeRequired</a><a href="#variant.PreconditionRequired">PreconditionRequired</a><a href="#variant.TooManyRequests">TooManyRequests</a><a href="#variant.RequestHeaderFieldsTooLarge">RequestHeaderFieldsTooLarge</a><a href="#variant.UnavailableForLegalReasons">UnavailableForLegalReasons</a><a href="#variant.InternalServerError">InternalServerError</a><a href="#variant.NotImplemented">NotImplemented</a><a href="#variant.BadGateway">BadGateway</a><a href="#variant.ServiceUnavailable">ServiceUnavailable</a><a href="#variant.GatewayTimeout">GatewayTimeout</a><a href="#variant.HttpVersionNotSupported">HttpVersionNotSupported</a><a href="#variant.VariantAlsoNegotiates">VariantAlsoNegotiates</a><a href="#variant.InsufficientStorage">InsufficientStorage</a><a href="#variant.LoopDetected">LoopDetected</a><a href="#variant.NotExtended">NotExtended</a><a href="#variant.NetworkAuthenticationRequired">NetworkAuthenticationRequired</a><a href="#variant.Unregistered">Unregistered</a></div><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.try_from">try_from</a><a href="#method.as_u16">as_u16</a><a href="#method.canonical_reason">canonical_reason</a><a href="#method.is_informational">is_informational</a><a href="#method.is_success">is_success</a><a href="#method.is_redirection">is_redirection</a><a href="#method.is_client_error">is_client_error</a><a href="#method.is_server_error">is_server_error</a><a href="#method.is_strange_status">is_strange_status</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a><a href="#impl-Hash">Hash</a><a href="#impl-Copy">Copy</a><a href="#impl-Display">Display</a><a href="#impl-PartialEq">PartialEq</a><a href="#impl-Eq">Eq</a><a href="#impl-Clone">Clone</a><a href="#impl-PartialOrd">PartialOrd</a><a href="#impl-Ord">Ord</a><a href="#impl-Default">Default</a><a href="#impl-From%3CStatusCode%3E">From&lt;StatusCode&gt;</a></div></div><p class='location'><a href='index.html'>hyper</a></p><script>window.sidebarCurrent = {name: 'StatusCode', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Enum <a href='index.html'>hyper</a>::<wbr><a class="enum" href=''>StatusCode</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/hyper/status.rs.html#21-217' title='goto source code'>[src]</a></span></h1>
+<pre class='rust enum'>pub enum StatusCode {
+    Continue,
+    SwitchingProtocols,
+    Processing,
+    Ok,
+    Created,
+    Accepted,
+    NonAuthoritativeInformation,
+    NoContent,
+    ResetContent,
+    PartialContent,
+    MultiStatus,
+    AlreadyReported,
+    ImUsed,
+    MultipleChoices,
+    MovedPermanently,
+    Found,
+    SeeOther,
+    NotModified,
+    UseProxy,
+    TemporaryRedirect,
+    PermanentRedirect,
+    BadRequest,
+    Unauthorized,
+    PaymentRequired,
+    Forbidden,
+    NotFound,
+    MethodNotAllowed,
+    NotAcceptable,
+    ProxyAuthenticationRequired,
+    RequestTimeout,
+    Conflict,
+    Gone,
+    LengthRequired,
+    PreconditionFailed,
+    PayloadTooLarge,
+    UriTooLong,
+    UnsupportedMediaType,
+    RangeNotSatisfiable,
+    ExpectationFailed,
+    ImATeapot,
+    MisdirectedRequest,
+    UnprocessableEntity,
+    Locked,
+    FailedDependency,
+    UpgradeRequired,
+    PreconditionRequired,
+    TooManyRequests,
+    RequestHeaderFieldsTooLarge,
+    UnavailableForLegalReasons,
+    InternalServerError,
+    NotImplemented,
+    BadGateway,
+    ServiceUnavailable,
+    GatewayTimeout,
+    HttpVersionNotSupported,
+    VariantAlsoNegotiates,
+    InsufficientStorage,
+    LoopDetected,
+    NotExtended,
+    NetworkAuthenticationRequired,
+    Unregistered(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u16.html">u16</a>),
+}</pre><div class='docblock'><p>An HTTP status code (<code>status-code</code> in RFC 7230 et al.).</p>
+<p>This enum contains all common status codes and an Unregistered
+extension variant. It allows status codes in the range [0, 65535], as any
+<code>u16</code> integer may be used as a status code for XHR requests. It is
+recommended to only use values between [100, 599], since only these are
+defined as valid status codes with a status class by HTTP.</p>
+<p>IANA maintain the <a href="http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml">Hypertext Transfer Protocol (HTTP) Status Code
+Registry</a> which is
+the source for this enum (with one exception, 418 I'm a teapot, which is
+inexplicably not in the register).</p>
+</div><h2 id='variants' class='variants small-section-header'>
+                   Variants<a href='#variants' class='anchor'></a></h2>
+<span id="variant.Continue" class="variant small-section-header"><a href="#variant.Continue" class="anchor field"></a><span id='Continue.v' class='invisible'><code>Continue</code></span></span><div class='docblock'><p>100 Continue
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.2.1">RFC7231, Section 6.2.1</a>]</p>
+</div><span id="variant.SwitchingProtocols" class="variant small-section-header"><a href="#variant.SwitchingProtocols" class="anchor field"></a><span id='SwitchingProtocols.v' class='invisible'><code>SwitchingProtocols</code></span></span><div class='docblock'><p>101 Switching Protocols
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.2.2">RFC7231, Section 6.2.2</a>]</p>
+</div><span id="variant.Processing" class="variant small-section-header"><a href="#variant.Processing" class="anchor field"></a><span id='Processing.v' class='invisible'><code>Processing</code></span></span><div class='docblock'><p>102 Processing
+[<a href="https://tools.ietf.org/html/rfc2518">RFC2518</a>]</p>
+</div><span id="variant.Ok" class="variant small-section-header"><a href="#variant.Ok" class="anchor field"></a><span id='Ok.v' class='invisible'><code>Ok</code></span></span><div class='docblock'><p>200 OK
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.3.1">RFC7231, Section 6.3.1</a>]</p>
+</div><span id="variant.Created" class="variant small-section-header"><a href="#variant.Created" class="anchor field"></a><span id='Created.v' class='invisible'><code>Created</code></span></span><div class='docblock'><p>201 Created
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.3.2">RFC7231, Section 6.3.2</a>]</p>
+</div><span id="variant.Accepted" class="variant small-section-header"><a href="#variant.Accepted" class="anchor field"></a><span id='Accepted.v' class='invisible'><code>Accepted</code></span></span><div class='docblock'><p>202 Accepted
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.3.3">RFC7231, Section 6.3.3</a>]</p>
+</div><span id="variant.NonAuthoritativeInformation" class="variant small-section-header"><a href="#variant.NonAuthoritativeInformation" class="anchor field"></a><span id='NonAuthoritativeInformation.v' class='invisible'><code>NonAuthoritativeInformation</code></span></span><div class='docblock'><p>203 Non-Authoritative Information
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.3.4">RFC7231, Section 6.3.4</a>]</p>
+</div><span id="variant.NoContent" class="variant small-section-header"><a href="#variant.NoContent" class="anchor field"></a><span id='NoContent.v' class='invisible'><code>NoContent</code></span></span><div class='docblock'><p>204 No Content
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.3.5">RFC7231, Section 6.3.5</a>]</p>
+</div><span id="variant.ResetContent" class="variant small-section-header"><a href="#variant.ResetContent" class="anchor field"></a><span id='ResetContent.v' class='invisible'><code>ResetContent</code></span></span><div class='docblock'><p>205 Reset Content
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.3.6">RFC7231, Section 6.3.6</a>]</p>
+</div><span id="variant.PartialContent" class="variant small-section-header"><a href="#variant.PartialContent" class="anchor field"></a><span id='PartialContent.v' class='invisible'><code>PartialContent</code></span></span><div class='docblock'><p>206 Partial Content
+[<a href="https://tools.ietf.org/html/rfc7233#section-4.1">RFC7233, Section 4.1</a>]</p>
+</div><span id="variant.MultiStatus" class="variant small-section-header"><a href="#variant.MultiStatus" class="anchor field"></a><span id='MultiStatus.v' class='invisible'><code>MultiStatus</code></span></span><div class='docblock'><p>207 Multi-Status
+[<a href="https://tools.ietf.org/html/rfc4918">RFC4918</a>]</p>
+</div><span id="variant.AlreadyReported" class="variant small-section-header"><a href="#variant.AlreadyReported" class="anchor field"></a><span id='AlreadyReported.v' class='invisible'><code>AlreadyReported</code></span></span><div class='docblock'><p>208 Already Reported
+[<a href="https://tools.ietf.org/html/rfc5842">RFC5842</a>]</p>
+</div><span id="variant.ImUsed" class="variant small-section-header"><a href="#variant.ImUsed" class="anchor field"></a><span id='ImUsed.v' class='invisible'><code>ImUsed</code></span></span><div class='docblock'><p>226 IM Used
+[<a href="https://tools.ietf.org/html/rfc3229">RFC3229</a>]</p>
+</div><span id="variant.MultipleChoices" class="variant small-section-header"><a href="#variant.MultipleChoices" class="anchor field"></a><span id='MultipleChoices.v' class='invisible'><code>MultipleChoices</code></span></span><div class='docblock'><p>300 Multiple Choices
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.4.1">RFC7231, Section 6.4.1</a>]</p>
+</div><span id="variant.MovedPermanently" class="variant small-section-header"><a href="#variant.MovedPermanently" class="anchor field"></a><span id='MovedPermanently.v' class='invisible'><code>MovedPermanently</code></span></span><div class='docblock'><p>301 Moved Permanently
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.4.2">RFC7231, Section 6.4.2</a>]</p>
+</div><span id="variant.Found" class="variant small-section-header"><a href="#variant.Found" class="anchor field"></a><span id='Found.v' class='invisible'><code>Found</code></span></span><div class='docblock'><p>302 Found
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.4.3">RFC7231, Section 6.4.3</a>]</p>
+</div><span id="variant.SeeOther" class="variant small-section-header"><a href="#variant.SeeOther" class="anchor field"></a><span id='SeeOther.v' class='invisible'><code>SeeOther</code></span></span><div class='docblock'><p>303 See Other
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.4.4">RFC7231, Section 6.4.4</a>]</p>
+</div><span id="variant.NotModified" class="variant small-section-header"><a href="#variant.NotModified" class="anchor field"></a><span id='NotModified.v' class='invisible'><code>NotModified</code></span></span><div class='docblock'><p>304 Not Modified
+[<a href="https://tools.ietf.org/html/rfc7232#section-4.1">RFC7232, Section 4.1</a>]</p>
+</div><span id="variant.UseProxy" class="variant small-section-header"><a href="#variant.UseProxy" class="anchor field"></a><span id='UseProxy.v' class='invisible'><code>UseProxy</code></span></span><div class='docblock'><p>305 Use Proxy
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.4.5">RFC7231, Section 6.4.5</a>]</p>
+</div><span id="variant.TemporaryRedirect" class="variant small-section-header"><a href="#variant.TemporaryRedirect" class="anchor field"></a><span id='TemporaryRedirect.v' class='invisible'><code>TemporaryRedirect</code></span></span><div class='docblock'><p>307 Temporary Redirect
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.4.7">RFC7231, Section 6.4.7</a>]</p>
+</div><span id="variant.PermanentRedirect" class="variant small-section-header"><a href="#variant.PermanentRedirect" class="anchor field"></a><span id='PermanentRedirect.v' class='invisible'><code>PermanentRedirect</code></span></span><div class='docblock'><p>308 Permanent Redirect
+[<a href="https://tools.ietf.org/html/rfc7238">RFC7238</a>]</p>
+</div><span id="variant.BadRequest" class="variant small-section-header"><a href="#variant.BadRequest" class="anchor field"></a><span id='BadRequest.v' class='invisible'><code>BadRequest</code></span></span><div class='docblock'><p>400 Bad Request
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.1">RFC7231, Section 6.5.1</a>]</p>
+</div><span id="variant.Unauthorized" class="variant small-section-header"><a href="#variant.Unauthorized" class="anchor field"></a><span id='Unauthorized.v' class='invisible'><code>Unauthorized</code></span></span><div class='docblock'><p>401 Unauthorized
+[<a href="https://tools.ietf.org/html/rfc7235#section-3.1">RFC7235, Section 3.1</a>]</p>
+</div><span id="variant.PaymentRequired" class="variant small-section-header"><a href="#variant.PaymentRequired" class="anchor field"></a><span id='PaymentRequired.v' class='invisible'><code>PaymentRequired</code></span></span><div class='docblock'><p>402 Payment Required
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.2">RFC7231, Section 6.5.2</a>]</p>
+</div><span id="variant.Forbidden" class="variant small-section-header"><a href="#variant.Forbidden" class="anchor field"></a><span id='Forbidden.v' class='invisible'><code>Forbidden</code></span></span><div class='docblock'><p>403 Forbidden
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.3">RFC7231, Section 6.5.3</a>]</p>
+</div><span id="variant.NotFound" class="variant small-section-header"><a href="#variant.NotFound" class="anchor field"></a><span id='NotFound.v' class='invisible'><code>NotFound</code></span></span><div class='docblock'><p>404 Not Found
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.4">RFC7231, Section 6.5.4</a>]</p>
+</div><span id="variant.MethodNotAllowed" class="variant small-section-header"><a href="#variant.MethodNotAllowed" class="anchor field"></a><span id='MethodNotAllowed.v' class='invisible'><code>MethodNotAllowed</code></span></span><div class='docblock'><p>405 Method Not Allowed
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.5">RFC7231, Section 6.5.5</a>]</p>
+</div><span id="variant.NotAcceptable" class="variant small-section-header"><a href="#variant.NotAcceptable" class="anchor field"></a><span id='NotAcceptable.v' class='invisible'><code>NotAcceptable</code></span></span><div class='docblock'><p>406 Not Acceptable
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.6">RFC7231, Section 6.5.6</a>]</p>
+</div><span id="variant.ProxyAuthenticationRequired" class="variant small-section-header"><a href="#variant.ProxyAuthenticationRequired" class="anchor field"></a><span id='ProxyAuthenticationRequired.v' class='invisible'><code>ProxyAuthenticationRequired</code></span></span><div class='docblock'><p>407 Proxy Authentication Required
+[<a href="https://tools.ietf.org/html/rfc7235#section-3.2">RFC7235, Section 3.2</a>]</p>
+</div><span id="variant.RequestTimeout" class="variant small-section-header"><a href="#variant.RequestTimeout" class="anchor field"></a><span id='RequestTimeout.v' class='invisible'><code>RequestTimeout</code></span></span><div class='docblock'><p>408 Request Timeout
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.7">RFC7231, Section 6.5.7</a>]</p>
+</div><span id="variant.Conflict" class="variant small-section-header"><a href="#variant.Conflict" class="anchor field"></a><span id='Conflict.v' class='invisible'><code>Conflict</code></span></span><div class='docblock'><p>409 Conflict
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.8">RFC7231, Section 6.5.8</a>]</p>
+</div><span id="variant.Gone" class="variant small-section-header"><a href="#variant.Gone" class="anchor field"></a><span id='Gone.v' class='invisible'><code>Gone</code></span></span><div class='docblock'><p>410 Gone
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.9">RFC7231, Section 6.5.9</a>]</p>
+</div><span id="variant.LengthRequired" class="variant small-section-header"><a href="#variant.LengthRequired" class="anchor field"></a><span id='LengthRequired.v' class='invisible'><code>LengthRequired</code></span></span><div class='docblock'><p>411 Length Required
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.10">RFC7231, Section 6.5.10</a>]</p>
+</div><span id="variant.PreconditionFailed" class="variant small-section-header"><a href="#variant.PreconditionFailed" class="anchor field"></a><span id='PreconditionFailed.v' class='invisible'><code>PreconditionFailed</code></span></span><div class='docblock'><p>412 Precondition Failed
+[<a href="https://tools.ietf.org/html/rfc7232#section-4.2">RFC7232, Section 4.2</a>]</p>
+</div><span id="variant.PayloadTooLarge" class="variant small-section-header"><a href="#variant.PayloadTooLarge" class="anchor field"></a><span id='PayloadTooLarge.v' class='invisible'><code>PayloadTooLarge</code></span></span><div class='docblock'><p>413 Payload Too Large
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.11">RFC7231, Section 6.5.11</a>]</p>
+</div><span id="variant.UriTooLong" class="variant small-section-header"><a href="#variant.UriTooLong" class="anchor field"></a><span id='UriTooLong.v' class='invisible'><code>UriTooLong</code></span></span><div class='docblock'><p>414 URI Too Long
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.12">RFC7231, Section 6.5.12</a>]</p>
+</div><span id="variant.UnsupportedMediaType" class="variant small-section-header"><a href="#variant.UnsupportedMediaType" class="anchor field"></a><span id='UnsupportedMediaType.v' class='invisible'><code>UnsupportedMediaType</code></span></span><div class='docblock'><p>415 Unsupported Media Type
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.13">RFC7231, Section 6.5.13</a>]</p>
+</div><span id="variant.RangeNotSatisfiable" class="variant small-section-header"><a href="#variant.RangeNotSatisfiable" class="anchor field"></a><span id='RangeNotSatisfiable.v' class='invisible'><code>RangeNotSatisfiable</code></span></span><div class='docblock'><p>416 Range Not Satisfiable
+[<a href="https://tools.ietf.org/html/rfc7233#section-4.4">RFC7233, Section 4.4</a>]</p>
+</div><span id="variant.ExpectationFailed" class="variant small-section-header"><a href="#variant.ExpectationFailed" class="anchor field"></a><span id='ExpectationFailed.v' class='invisible'><code>ExpectationFailed</code></span></span><div class='docblock'><p>417 Expectation Failed
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.14">RFC7231, Section 6.5.14</a>]</p>
+</div><span id="variant.ImATeapot" class="variant small-section-header"><a href="#variant.ImATeapot" class="anchor field"></a><span id='ImATeapot.v' class='invisible'><code>ImATeapot</code></span></span><div class='docblock'><p>418 I'm a teapot
+[curiously, not registered by IANA, but <a href="https://tools.ietf.org/html/rfc2324">RFC2324</a>]</p>
+</div><span id="variant.MisdirectedRequest" class="variant small-section-header"><a href="#variant.MisdirectedRequest" class="anchor field"></a><span id='MisdirectedRequest.v' class='invisible'><code>MisdirectedRequest</code></span></span><div class='docblock'><p>421 Misdirected Request
+<a href="http://tools.ietf.org/html/rfc7540#section-9.1.2">RFC7540, Section 9.1.2</a></p>
+</div><span id="variant.UnprocessableEntity" class="variant small-section-header"><a href="#variant.UnprocessableEntity" class="anchor field"></a><span id='UnprocessableEntity.v' class='invisible'><code>UnprocessableEntity</code></span></span><div class='docblock'><p>422 Unprocessable Entity
+[<a href="https://tools.ietf.org/html/rfc4918">RFC4918</a>]</p>
+</div><span id="variant.Locked" class="variant small-section-header"><a href="#variant.Locked" class="anchor field"></a><span id='Locked.v' class='invisible'><code>Locked</code></span></span><div class='docblock'><p>423 Locked
+[<a href="https://tools.ietf.org/html/rfc4918">RFC4918</a>]</p>
+</div><span id="variant.FailedDependency" class="variant small-section-header"><a href="#variant.FailedDependency" class="anchor field"></a><span id='FailedDependency.v' class='invisible'><code>FailedDependency</code></span></span><div class='docblock'><p>424 Failed Dependency
+[<a href="https://tools.ietf.org/html/rfc4918">RFC4918</a>]</p>
+</div><span id="variant.UpgradeRequired" class="variant small-section-header"><a href="#variant.UpgradeRequired" class="anchor field"></a><span id='UpgradeRequired.v' class='invisible'><code>UpgradeRequired</code></span></span><div class='docblock'><p>426 Upgrade Required
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.5.15">RFC7231, Section 6.5.15</a>]</p>
+</div><span id="variant.PreconditionRequired" class="variant small-section-header"><a href="#variant.PreconditionRequired" class="anchor field"></a><span id='PreconditionRequired.v' class='invisible'><code>PreconditionRequired</code></span></span><div class='docblock'><p>428 Precondition Required
+[<a href="https://tools.ietf.org/html/rfc6585">RFC6585</a>]</p>
+</div><span id="variant.TooManyRequests" class="variant small-section-header"><a href="#variant.TooManyRequests" class="anchor field"></a><span id='TooManyRequests.v' class='invisible'><code>TooManyRequests</code></span></span><div class='docblock'><p>429 Too Many Requests
+[<a href="https://tools.ietf.org/html/rfc6585">RFC6585</a>]</p>
+</div><span id="variant.RequestHeaderFieldsTooLarge" class="variant small-section-header"><a href="#variant.RequestHeaderFieldsTooLarge" class="anchor field"></a><span id='RequestHeaderFieldsTooLarge.v' class='invisible'><code>RequestHeaderFieldsTooLarge</code></span></span><div class='docblock'><p>431 Request Header Fields Too Large
+[<a href="https://tools.ietf.org/html/rfc6585">RFC6585</a>]</p>
+</div><span id="variant.UnavailableForLegalReasons" class="variant small-section-header"><a href="#variant.UnavailableForLegalReasons" class="anchor field"></a><span id='UnavailableForLegalReasons.v' class='invisible'><code>UnavailableForLegalReasons</code></span></span><div class='docblock'><p>451 Unavailable For Legal Reasons
+[<a href="http://tools.ietf.org/html/rfc7725">RFC7725</a>]</p>
+</div><span id="variant.InternalServerError" class="variant small-section-header"><a href="#variant.InternalServerError" class="anchor field"></a><span id='InternalServerError.v' class='invisible'><code>InternalServerError</code></span></span><div class='docblock'><p>500 Internal Server Error
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.6.1">RFC7231, Section 6.6.1</a>]</p>
+</div><span id="variant.NotImplemented" class="variant small-section-header"><a href="#variant.NotImplemented" class="anchor field"></a><span id='NotImplemented.v' class='invisible'><code>NotImplemented</code></span></span><div class='docblock'><p>501 Not Implemented
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.6.2">RFC7231, Section 6.6.2</a>]</p>
+</div><span id="variant.BadGateway" class="variant small-section-header"><a href="#variant.BadGateway" class="anchor field"></a><span id='BadGateway.v' class='invisible'><code>BadGateway</code></span></span><div class='docblock'><p>502 Bad Gateway
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.6.3">RFC7231, Section 6.6.3</a>]</p>
+</div><span id="variant.ServiceUnavailable" class="variant small-section-header"><a href="#variant.ServiceUnavailable" class="anchor field"></a><span id='ServiceUnavailable.v' class='invisible'><code>ServiceUnavailable</code></span></span><div class='docblock'><p>503 Service Unavailable
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.6.4">RFC7231, Section 6.6.4</a>]</p>
+</div><span id="variant.GatewayTimeout" class="variant small-section-header"><a href="#variant.GatewayTimeout" class="anchor field"></a><span id='GatewayTimeout.v' class='invisible'><code>GatewayTimeout</code></span></span><div class='docblock'><p>504 Gateway Timeout
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.6.5">RFC7231, Section 6.6.5</a>]</p>
+</div><span id="variant.HttpVersionNotSupported" class="variant small-section-header"><a href="#variant.HttpVersionNotSupported" class="anchor field"></a><span id='HttpVersionNotSupported.v' class='invisible'><code>HttpVersionNotSupported</code></span></span><div class='docblock'><p>505 HTTP Version Not Supported
+[<a href="https://tools.ietf.org/html/rfc7231#section-6.6.6">RFC7231, Section 6.6.6</a>]</p>
+</div><span id="variant.VariantAlsoNegotiates" class="variant small-section-header"><a href="#variant.VariantAlsoNegotiates" class="anchor field"></a><span id='VariantAlsoNegotiates.v' class='invisible'><code>VariantAlsoNegotiates</code></span></span><div class='docblock'><p>506 Variant Also Negotiates
+[<a href="https://tools.ietf.org/html/rfc2295">RFC2295</a>]</p>
+</div><span id="variant.InsufficientStorage" class="variant small-section-header"><a href="#variant.InsufficientStorage" class="anchor field"></a><span id='InsufficientStorage.v' class='invisible'><code>InsufficientStorage</code></span></span><div class='docblock'><p>507 Insufficient Storage
+[<a href="https://tools.ietf.org/html/rfc4918">RFC4918</a>]</p>
+</div><span id="variant.LoopDetected" class="variant small-section-header"><a href="#variant.LoopDetected" class="anchor field"></a><span id='LoopDetected.v' class='invisible'><code>LoopDetected</code></span></span><div class='docblock'><p>508 Loop Detected
+[<a href="https://tools.ietf.org/html/rfc5842">RFC5842</a>]</p>
+</div><span id="variant.NotExtended" class="variant small-section-header"><a href="#variant.NotExtended" class="anchor field"></a><span id='NotExtended.v' class='invisible'><code>NotExtended</code></span></span><div class='docblock'><p>510 Not Extended
+[<a href="https://tools.ietf.org/html/rfc2774">RFC2774</a>]</p>
+</div><span id="variant.NetworkAuthenticationRequired" class="variant small-section-header"><a href="#variant.NetworkAuthenticationRequired" class="anchor field"></a><span id='NetworkAuthenticationRequired.v' class='invisible'><code>NetworkAuthenticationRequired</code></span></span><div class='docblock'><p>511 Network Authentication Required
+[<a href="https://tools.ietf.org/html/rfc6585">RFC6585</a>]</p>
+</div><span id="variant.Unregistered" class="variant small-section-header"><a href="#variant.Unregistered" class="anchor field"></a><span id='Unregistered.v' class='invisible'><code>Unregistered(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u16.html">u16</a>)</code></span></span><div class='docblock'><p>A status code not in the IANA HTTP status code registry or very well known</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#224-534' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.try_from' class="method"><span id='try_from.v' class='invisible'><code>pub fn <a href='#method.try_from' class='fnname'>try_from</a>(n: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u16.html">u16</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a>, InvalidStatusCode&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#237-245' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Try to convert a <code>u16</code> into a <code>StatusCode</code>.</p>
+<h1 id="errors" class="section-header"><a href="#errors">Errors</a></h1>
+<p>This will return an error if the provided argument is not within the
+range <code>100...599</code>.</p>
+<h1 id="note" class="section-header"><a href="#note">Note</a></h1>
+<p>This function is temporary. When the <code>TryFrom</code> trait becomes stable,
+this will be deprecated and replaced by <code>TryFrom&lt;u16&gt;</code>.</p>
+</div><h4 id='method.as_u16' class="method"><span id='as_u16.v' class='invisible'><code>pub fn <a href='#method.as_u16' class='fnname'>as_u16</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u16.html">u16</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#334-398' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Get the <code>u16</code> code from this <code>StatusCode</code>.</p>
+<p>Also available as <code>From</code>/<code>Into&lt;u16&gt;</code>.</p>
+<h1 id="example" class="section-header"><a href="#example">Example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">hyper</span>::<span class="ident">StatusCode</span>;
+
+<span class="kw">let</span> <span class="ident">status</span> <span class="op">=</span> <span class="ident">StatusCode</span>::<span class="prelude-val">Ok</span>;
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">status</span>.<span class="ident">as_u16</span>(), <span class="number">200</span>);
+
+<span class="comment">// Into</span>
+<span class="kw">let</span> <span class="ident">num</span>: <span class="ident">u16</span> <span class="op">=</span> <span class="ident">status</span>.<span class="ident">into</span>();
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">num</span>, <span class="number">200</span>);
+
+<span class="comment">// From</span>
+<span class="kw">let</span> <span class="ident">other</span> <span class="op">=</span> <span class="ident">u16</span>::<span class="ident">from</span>(<span class="ident">status</span>);
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">num</span>, <span class="ident">other</span>);</pre>
+</div><h4 id='method.canonical_reason' class="method"><span id='canonical_reason.v' class='invisible'><code>pub fn <a href='#method.canonical_reason' class='fnname'>canonical_reason</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;'static <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#410-486' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Get the standardised <code>reason-phrase</code> for this status code.</p>
+<p>This is mostly here for servers writing responses, but could potentially have application
+at other times.</p>
+<p>The reason phrase is defined as being exclusively for human readers. You should avoid
+deriving any meaning from it at all costs.</p>
+<p>Bear in mind also that in HTTP/2.0 the reason phrase is abolished from transmission, and so
+this canonical reason phrase really is the only reason phrase you’ll find.</p>
+</div><h4 id='method.is_informational' class="method"><span id='is_informational.v' class='invisible'><code>pub fn <a href='#method.is_informational' class='fnname'>is_informational</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#490-492' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Check if this <code>StatusCode</code> is within 100-199.</p>
+</div><h4 id='method.is_success' class="method"><span id='is_success.v' class='invisible'><code>pub fn <a href='#method.is_success' class='fnname'>is_success</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#496-498' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Check if this <code>StatusCode</code> is within 200-299.</p>
+</div><h4 id='method.is_redirection' class="method"><span id='is_redirection.v' class='invisible'><code>pub fn <a href='#method.is_redirection' class='fnname'>is_redirection</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#502-504' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Check if this <code>StatusCode</code> is within 300-399.</p>
+</div><h4 id='method.is_client_error' class="method"><span id='is_client_error.v' class='invisible'><code>pub fn <a href='#method.is_client_error' class='fnname'>is_client_error</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#508-510' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Check if this <code>StatusCode</code> is within 400-499.</p>
+</div><h4 id='method.is_server_error' class="method"><span id='is_server_error.v' class='invisible'><code>pub fn <a href='#method.is_server_error' class='fnname'>is_server_error</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#514-516' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Check if this <code>StatusCode</code> is within 500-599.</p>
+</div><h4 id='method.is_strange_status' class="method"><span id='is_strange_status.v' class='invisible'><code>pub fn <a href='#method.is_strange_status' class='fnname'>is_strange_status</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#520-522' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Check if this <code>StatusCode</code> is not within 100-599.</p>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#20' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#20' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-Hash' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html" title="trait core::hash::Hash">Hash</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-Hash' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#20' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.hash' class="method"><span id='hash.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#tymethod.hash' class='fnname'>hash</a>&lt;__H:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hasher.html" title="trait core::hash::Hasher">Hasher</a>&gt;(&amp;self, __arg_0: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>__H)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#20' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Feeds this value into the given [<code>Hasher</code>]. <a href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#tymethod.hash">Read more</a></p>
+</div><h4 id='method.hash_slice' class="method"><span id='hash_slice.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#method.hash_slice' class='fnname'>hash_slice</a>&lt;H&gt;(data: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[Self]</a>, state: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>H) <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;H: <a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hasher.html" title="trait core::hash::Hasher">Hasher</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.3.0'>1.3.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/hash/mod.rs.html#202-208' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Feeds a slice of this type into the given [<code>Hasher</code>]. <a href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#method.hash_slice">Read more</a></p>
+</div></div><h3 id='impl-Copy' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Copy.html" title="trait core::marker::Copy">Copy</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-Copy' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#536' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div><h3 id='impl-Display' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-Display' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#546-552' title='goto source code'>[src]</a></span></h3>
+<div class='docblock'><p>Formats the status code, <em>including</em> the canonical reason.</p>
+
+<pre class="rust rust-example-rendered">
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">ImATeapot</span>), <span class="string">&quot;418 I&#39;m a teapot&quot;</span>);
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">Unregistered</span>(<span class="number">123</span>)),
+           <span class="string">&quot;123 &lt;unknown status code&gt;&quot;</span>);</pre>
+</div><div class='impl-items'><h4 id='method.fmt-1' class="method"><span id='fmt.v-1' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#548-551' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-PartialEq' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html" title="trait core::cmp::PartialEq">PartialEq</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-PartialEq' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#554-559' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.eq' class="method"><span id='eq.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq' class='fnname'>eq</a>(&amp;self, other: &amp;<a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#556-558' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq">Read more</a></p>
+</div><h4 id='method.ne' class="method"><span id='ne.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne' class='fnname'>ne</a>(&amp;self, other: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Rhs) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/cmp.rs.html#121' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>!=</code>.</p>
+</div></div><h3 id='impl-Eq' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html" title="trait core::cmp::Eq">Eq</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-Eq' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#561' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div><h3 id='impl-Clone' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-Clone' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#563-568' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#565-567' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#112-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 id='impl-PartialOrd' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html" title="trait core::cmp::PartialOrd">PartialOrd</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-PartialOrd' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#570-575' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.partial_cmp' class="method"><span id='partial_cmp.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#tymethod.partial_cmp' class='fnname'>partial_cmp</a>(&amp;self, other: &amp;<a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/cmp/enum.Ordering.html" title="enum core::cmp::Ordering">Ordering</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#572-574' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method returns an ordering between <code>self</code> and <code>other</code> values if one exists. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#tymethod.partial_cmp">Read more</a></p>
+</div><h4 id='method.lt' class="method"><span id='lt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.lt' class='fnname'>lt</a>(&amp;self, other: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Rhs) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/cmp.rs.html#644-649' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests less than (for <code>self</code> and <code>other</code>) and is used by the <code>&lt;</code> operator. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.lt">Read more</a></p>
+</div><h4 id='method.le' class="method"><span id='le.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.le' class='fnname'>le</a>(&amp;self, other: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Rhs) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/cmp.rs.html#666-671' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests less than or equal to (for <code>self</code> and <code>other</code>) and is used by the <code>&lt;=</code> operator. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.le">Read more</a></p>
+</div><h4 id='method.gt' class="method"><span id='gt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.gt' class='fnname'>gt</a>(&amp;self, other: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Rhs) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/cmp.rs.html#687-692' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests greater than (for <code>self</code> and <code>other</code>) and is used by the <code>&gt;</code> operator. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.gt">Read more</a></p>
+</div><h4 id='method.ge' class="method"><span id='ge.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.ge' class='fnname'>ge</a>(&amp;self, other: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Rhs) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/cmp.rs.html#709-714' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests greater than or equal to (for <code>self</code> and <code>other</code>) and is used by the <code>&gt;=</code> operator. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.ge">Read more</a></p>
+</div></div><h3 id='impl-Ord' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html" title="trait core::cmp::Ord">Ord</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-Ord' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#577-588' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.cmp' class="method"><span id='cmp.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#tymethod.cmp' class='fnname'>cmp</a>(&amp;self, other: &amp;<a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/cmp/enum.Ordering.html" title="enum core::cmp::Ordering">Ordering</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#579-587' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method returns an <code>Ordering</code> between <code>self</code> and <code>other</code>. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#tymethod.cmp">Read more</a></p>
+</div><h4 id='method.max' class="method"><span id='max.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#method.max' class='fnname'>max</a>(self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.21.0'>1.21.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/cmp.rs.html#460-463' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Compares and returns the maximum of two values. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#method.max">Read more</a></p>
+</div><h4 id='method.min' class="method"><span id='min.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#method.min' class='fnname'>min</a>(self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.21.0'>1.21.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/cmp.rs.html#476-479' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Compares and returns the minimum of two values. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#method.min">Read more</a></p>
+</div></div><h3 id='impl-Default' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/default/trait.Default.html" title="trait core::default::Default">Default</a> for <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code><a href='#impl-Default' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#590-594' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.default' class="method"><span id='default.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default' class='fnname'>default</a>() -&gt; <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#591-593' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the &quot;default value&quot; for a type. <a href="https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default">Read more</a></p>
+</div></div><h3 id='impl-From%3CStatusCode%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a>&gt; for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u16.html">u16</a></code><a href='#impl-From%3CStatusCode%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#596-600' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from' class="method"><span id='from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(code: <a class="enum" href="../hyper/enum.StatusCode.html" title="enum hyper::StatusCode">StatusCode</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u16.html">u16</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/hyper/status.rs.html#597-599' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "hyper";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

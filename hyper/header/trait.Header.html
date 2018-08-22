@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Header` trait in crate `hyper`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Header">
+
+    <title>hyper::header::Header - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait Header</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.header_name">header_name</a><a href="#tymethod.parse_header">parse_header</a><a href="#tymethod.fmt_header">fmt_header</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='../index.html'>hyper</a>::<wbr><a href='index.html'>header</a></p><script>window.sidebarCurrent = {name: 'Header', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>hyper</a>::<wbr><a href='index.html'>header</a>::<wbr><a class="trait" href=''>Header</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/hyper/header/mod.rs.html#109-137' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait Header: 'static + HeaderClone + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> {
+    fn <a href='#tymethod.header_name' class='fnname'>header_name</a>() -&gt; &amp;'static <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a><br>&nbsp;&nbsp;&nbsp; <span class="where">where<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Self: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a></span>;
+<div class='item-spacer'></div>    fn <a href='#tymethod.parse_header' class='fnname'>parse_header</a>(raw: &amp;<a class="struct" href="../../hyper/header/struct.Raw.html" title="struct hyper::header::Raw">Raw</a>) -&gt; <a class="type" href="../../hyper/error/type.Result.html" title="type hyper::error::Result">Result</a>&lt;Self&gt;<br>&nbsp;&nbsp;&nbsp; <span class="where">where<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Self: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a></span>;
+<div class='item-spacer'></div>    fn <a href='#tymethod.fmt_header' class='fnname'>fmt_header</a>(&amp;self, f: &amp;mut <a class="struct" href="../../hyper/header/struct.Formatter.html" title="struct hyper::header::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a>;
+}</pre><div class='docblock'><p>A trait for any object that will represent a header field and value.</p>
+<p>This trait represents the construction and identification of headers,
+and contains trait-object unsafe methods.</p>
+</div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.header_name' class='method'><span id='header_name.v' class='invisible'><code>fn <a href='#tymethod.header_name' class='fnname'>header_name</a>() -&gt; &amp;'static <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a> <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;Self: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></code></span></h3><div class='docblock'><p>Returns the name of the header field this belongs to.</p>
+<p>This will become an associated constant once available.</p>
+</div><h3 id='tymethod.parse_header' class='method'><span id='parse_header.v' class='invisible'><code>fn <a href='#tymethod.parse_header' class='fnname'>parse_header</a>(raw: &amp;<a class="struct" href="../../hyper/header/struct.Raw.html" title="struct hyper::header::Raw">Raw</a>) -&gt; <a class="type" href="../../hyper/error/type.Result.html" title="type hyper::error::Result">Result</a>&lt;Self&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;Self: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></code></span></h3><div class='docblock'><p>Parse a header from a raw stream of bytes.</p>
+<p>It's possible that a request can include a header field more than once,
+and in that case, the slice will have a length greater than 1. However,
+it's not necessarily the case that a Header is <em>allowed</em> to have more
+than one field value. If that's the case, you <strong>should</strong> return <code>None</code>
+if <code>raw.len() &gt; 1</code>.</p>
+</div><h3 id='tymethod.fmt_header' class='method'><span id='fmt_header.v' class='invisible'><code>fn <a href='#tymethod.fmt_header' class='fnname'>fmt_header</a>(&amp;self, f: &amp;mut <a class="struct" href="../../hyper/header/struct.Formatter.html" title="struct hyper::header::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span></h3><div class='docblock'><p>Format a header to outgoing stream.</p>
+<p>Most headers should be formatted on one line, and so a common pattern
+would be to implement <code>std::fmt::Display</code> for this type as well, and
+then just call <code>f.fmt_line(self)</code>.</p>
+<h2 id="note" class="section-header"><a href="#note">Note</a></h2>
+<p>This has the ability to format a header over multiple lines.</p>
+<p>The main example here is <code>Set-Cookie</code>, which requires that every
+cookie being set be specified in a separate line. Almost every other
+case should only format as 1 single line.</p>
+</div></div>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#232-246' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AcceptCharset.html" title="struct hyper::header::AcceptCharset">AcceptCharset</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#205-218' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AcceptEncoding.html" title="struct hyper::header::AcceptEncoding">AcceptEncoding</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#232-246' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AcceptLanguage.html" title="struct hyper::header::AcceptLanguage">AcceptLanguage</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#232-246' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AcceptRanges.html" title="struct hyper::header::AcceptRanges">AcceptRanges</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#232-246' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Accept.html" title="struct hyper::header::Accept">Accept</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/access_control_allow_credentials.rs.html#45-71' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AccessControlAllowCredentials.html" title="struct hyper::header::AccessControlAllowCredentials">AccessControlAllowCredentials</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#205-218' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AccessControlAllowHeaders.html" title="struct hyper::header::AccessControlAllowHeaders">AccessControlAllowHeaders</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#205-218' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AccessControlAllowMethods.html" title="struct hyper::header::AccessControlAllowMethods">AccessControlAllowMethods</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/access_control_allow_origin.rs.html#59-79' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.AccessControlAllowOrigin.html" title="enum hyper::header::AccessControlAllowOrigin">AccessControlAllowOrigin</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#205-218' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AccessControlExposeHeaders.html" title="struct hyper::header::AccessControlExposeHeaders">AccessControlExposeHeaders</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AccessControlMaxAge.html" title="struct hyper::header::AccessControlMaxAge">AccessControlMaxAge</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#205-218' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AccessControlRequestHeaders.html" title="struct hyper::header::AccessControlRequestHeaders">AccessControlRequestHeaders</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.AccessControlRequestMethod.html" title="struct hyper::header::AccessControlRequestMethod">AccessControlRequestMethod</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#205-218' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Allow.html" title="struct hyper::header::Allow">Allow</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/authorization.rs.html#77-109' title='goto source code'>[src]</a></div><code>impl&lt;S:&nbsp;<a class="trait" href="../../hyper/header/trait.Scheme.html" title="trait hyper::header::Scheme">Scheme</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/any/trait.Any.html" title="trait core::any::Any">Any</a>&gt; Header for <a class="struct" href="../../hyper/header/struct.Authorization.html" title="struct hyper::header::Authorization">Authorization</a>&lt;S&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;&lt;S as <a class="trait" href="https://doc.rust-lang.org/nightly/core/str/trait.FromStr.html" title="trait core::str::FromStr">FromStr</a>&gt;::<a class="type" href="https://doc.rust-lang.org/nightly/core/str/trait.FromStr.html#associatedtype.Err" title="type core::str::FromStr::Err">Err</a>: 'static,&nbsp;</span></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/cache_control.rs.html#56-74' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.CacheControl.html" title="struct hyper::header::CacheControl">CacheControl</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#232-246' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Connection.html" title="struct hyper::header::Connection">Connection</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/content_disposition.rs.html#92-154' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.ContentDisposition.html" title="struct hyper::header::ContentDisposition">ContentDisposition</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#232-246' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.ContentEncoding.html" title="struct hyper::header::ContentEncoding">ContentEncoding</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#232-246' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.ContentLanguage.html" title="struct hyper::header::ContentLanguage">ContentLanguage</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/content_length.rs.html#45-74' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.ContentLength.html" title="struct hyper::header::ContentLength">ContentLength</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.ContentLocation.html" title="struct hyper::header::ContentLocation">ContentLocation</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.ContentRange.html" title="struct hyper::header::ContentRange">ContentRange</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#288-302' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.ContentType.html" title="struct hyper::header::ContentType">ContentType</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/cookie.rs.html#113-142' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Cookie.html" title="struct hyper::header::Cookie">Cookie</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Date.html" title="struct hyper::header::Date">Date</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.ETag.html" title="struct hyper::header::ETag">ETag</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/expect.rs.html#29-58' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.Expect.html" title="enum hyper::header::Expect">Expect</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Expires.html" title="struct hyper::header::Expires">Expires</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.From.html" title="struct hyper::header::From">From</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/host.rs.html#61-74' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Host.html" title="struct hyper::header::Host">Host</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#360-380' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.IfMatch.html" title="enum hyper::header::IfMatch">IfMatch</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.IfModifiedSince.html" title="struct hyper::header::IfModifiedSince">IfModifiedSince</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#360-380' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.IfNoneMatch.html" title="enum hyper::header::IfNoneMatch">IfNoneMatch</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/if_range.rs.html#55-75' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.IfRange.html" title="enum hyper::header::IfRange">IfRange</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.IfUnmodifiedSince.html" title="struct hyper::header::IfUnmodifiedSince">IfUnmodifiedSince</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/last_event_id.rs.html#27-47' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.LastEventId.html" title="struct hyper::header::LastEventId">LastEventId</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#260-274' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.LastModified.html" title="struct hyper::header::LastModified">LastModified</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/link.rs.html#388-418' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Link.html" title="struct hyper::header::Link">Link</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#328-342' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Location.html" title="struct hyper::header::Location">Location</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/origin.rs.html#101-114' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Origin.html" title="struct hyper::header::Origin">Origin</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/pragma.rs.html#45-64' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.Pragma.html" title="enum hyper::header::Pragma">Pragma</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/prefer.rs.html#56-74' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Prefer.html" title="struct hyper::header::Prefer">Prefer</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/preference_applied.rs.html#55-73' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.PreferenceApplied.html" title="struct hyper::header::PreferenceApplied">PreferenceApplied</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/proxy_authorization.rs.html#77-109' title='goto source code'>[src]</a></div><code>impl&lt;S:&nbsp;<a class="trait" href="../../hyper/header/trait.Scheme.html" title="trait hyper::header::Scheme">Scheme</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/any/trait.Any.html" title="trait core::any::Any">Any</a>&gt; Header for <a class="struct" href="../../hyper/header/struct.ProxyAuthorization.html" title="struct hyper::header::ProxyAuthorization">ProxyAuthorization</a>&lt;S&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;&lt;S as <a class="trait" href="https://doc.rust-lang.org/nightly/core/str/trait.FromStr.html" title="trait core::str::FromStr">FromStr</a>&gt;::<a class="type" href="https://doc.rust-lang.org/nightly/core/str/trait.FromStr.html#associatedtype.Err" title="type core::str::FromStr::Err">Err</a>: 'static,&nbsp;</span></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/range.rs.html#257-272' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.Range.html" title="enum hyper::header::Range">Range</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#328-342' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Referer.html" title="struct hyper::header::Referer">Referer</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/referrer_policy.rs.html#57-89' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.ReferrerPolicy.html" title="enum hyper::header::ReferrerPolicy">ReferrerPolicy</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/retry_after.rs.html#87-117' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.RetryAfter.html" title="enum hyper::header::RetryAfter">RetryAfter</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#328-342' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Server.html" title="struct hyper::header::Server">Server</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/set_cookie.rs.html#76-103' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.SetCookie.html" title="struct hyper::header::SetCookie">SetCookie</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/strict_transport_security.rs.html#124-137' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.StrictTransportSecurity.html" title="struct hyper::header::StrictTransportSecurity">StrictTransportSecurity</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#205-218' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Te.html" title="struct hyper::header::Te">Te</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#232-246' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.TransferEncoding.html" title="struct hyper::header::TransferEncoding">TransferEncoding</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#232-246' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Upgrade.html" title="struct hyper::header::Upgrade">Upgrade</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#328-342' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.UserAgent.html" title="struct hyper::header::UserAgent">UserAgent</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/mod.rs.html#360-380' title='goto source code'>[src]</a></div><code>impl Header for <a class="enum" href="../../hyper/header/enum.Vary.html" title="enum hyper::header::Vary">Vary</a></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/hyper/header/common/warning.rs.html#91-104' title='goto source code'>[src]</a></div><code>impl Header for <a class="struct" href="../../hyper/header/struct.Warning.html" title="struct hyper::header::Warning">Warning</a></code></li>
+</ul><script type="text/javascript" async
+                         src="../../implementors/hyper/header/trait.Header.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "hyper";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

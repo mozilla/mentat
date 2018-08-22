@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Encoder` trait in crate `tokio_codec`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Encoder">
+
+    <title>tokio_codec::Encoder - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait Encoder</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#associated-types">Associated Types</a><div class="sidebar-links"><a href="#associatedtype.Item">Item</a><a href="#associatedtype.Error">Error</a></div><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.encode">encode</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='index.html'>tokio_codec</a></p><script>window.sidebarCurrent = {name: 'Encoder', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>tokio_codec</a>::<wbr><a class="trait" href=''>Encoder</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/tokio_io/codec/encoder.rs.html#9-26' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait Encoder {
+    type <a href='#associatedtype.Item' class="type">Item</a>;
+    type <a href='#associatedtype.Error' class="type">Error</a>: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">Error</a>&gt;;
+    fn <a href='#tymethod.encode' class='fnname'>encode</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;item: Self::<a class="type" href="../tokio_codec/trait.Encoder.html#associatedtype.Item" title="type tokio_codec::Encoder::Item">Item</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dst: &amp;mut <a class="struct" href="../bytes/bytes/struct.BytesMut.html" title="struct bytes::bytes::BytesMut">BytesMut</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, Self::<a class="type" href="../tokio_codec/trait.Encoder.html#associatedtype.Error" title="type tokio_codec::Encoder::Error">Error</a>&gt;;
+}</pre><div class='docblock'><p>Trait of helper objects to write out messages as bytes, for use with
+<code>FramedWrite</code>.</p>
+</div>
+            <h2 id='associated-types' class='small-section-header'>
+              Associated Types<a href='#associated-types' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='associatedtype.Item' class='method'><span id='Item.t' class='invisible'><code>type <a href='#associatedtype.Item' class="type">Item</a></code></span></h3><div class='docblock'><p>The type of items consumed by the <code>Encoder</code></p>
+</div><h3 id='associatedtype.Error' class='method'><span id='Error.t' class='invisible'><code>type <a href='#associatedtype.Error' class="type">Error</a>: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">Error</a>&gt;</code></span></h3><div class='docblock'><p>The type of encoding errors.</p>
+<p><code>FramedWrite</code> requires <code>Encoder</code>s errors to implement <code>From&lt;io::Error&gt;</code>
+in the interest letting it return <code>Error</code>s directly.</p>
+</div></div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.encode' class='method'><span id='encode.v' class='invisible'><code>fn <a href='#tymethod.encode' class='fnname'>encode</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;item: Self::<a class="type" href="../tokio_codec/trait.Encoder.html#associatedtype.Item" title="type tokio_codec::Encoder::Item">Item</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;dst: &amp;mut <a class="struct" href="../bytes/bytes/struct.BytesMut.html" title="struct bytes::bytes::BytesMut">BytesMut</a><br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, Self::<a class="type" href="../tokio_codec/trait.Encoder.html#associatedtype.Error" title="type tokio_codec::Encoder::Error">Error</a>&gt;</code></span></h3><div class='docblock'><p>Encodes a frame into the buffer provided.</p>
+<p>This method will encode <code>item</code> into the byte buffer provided by <code>dst</code>.
+The <code>dst</code> provided is an internal buffer of the <code>Framed</code> instance and
+will be written out when possible.</p>
+</div></div>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><div class='out-of-band'><a class='srclink' href='../src/tokio_codec/bytes_codec.rs.html#28-37' title='goto source code'>[src]</a></div><code>impl Encoder for <a class="struct" href="../tokio_codec/struct.BytesCodec.html" title="struct tokio_codec::BytesCodec">BytesCodec</a><span class="where fmt-newline">  type <a href='#associatedtype.Item' class="type">Item</a> = <a class="struct" href="../bytes/bytes/struct.Bytes.html" title="struct bytes::bytes::Bytes">Bytes</a>;</span><span class="where fmt-newline">  type <a href='#associatedtype.Error' class="type">Error</a> = <a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">Error</a>;</span></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../src/tokio_codec/lines_codec.rs.html#79-89' title='goto source code'>[src]</a></div><code>impl Encoder for <a class="struct" href="../tokio_codec/struct.LinesCodec.html" title="struct tokio_codec::LinesCodec">LinesCodec</a><span class="where fmt-newline">  type <a href='#associatedtype.Item' class="type">Item</a> = <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>;</span><span class="where fmt-newline">  type <a href='#associatedtype.Error' class="type">Error</a> = <a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">Error</a>;</span></code></li>
+</ul><script type="text/javascript" async
+                         src="../implementors/tokio_io/codec/encoder/trait.Encoder.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "tokio_codec";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `visit` mod in crate `petgraph`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, visit">
+
+    <title>petgraph::visit - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module visit</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>petgraph</a></p><script>window.sidebarCurrent = {name: 'visit', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>petgraph</a>::<wbr><a class="mod" href=''>visit</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/petgraph/visit/mod.rs.html#1-714' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>Graph traits and graph traversals.</p>
+<h3 id="the-into--traits" class="section-header"><a href="#the-into--traits">The <code>Into-</code> Traits</a></h3>
+<p>Graph traits like <a href="trait.IntoNeighbors.html"><code>IntoNeighbors</code></a> create iterators and use the same
+pattern that <code>IntoIterator</code> does: the trait takes a reference to a graph,
+and produces an iterator. These traits are quite composable, but with the
+limitation that they only use shared references to graphs.</p>
+<h3 id="graph-traversal" class="section-header"><a href="#graph-traversal">Graph Traversal</a></h3>
+<p><a href="struct.Dfs.html"><code>Dfs</code></a>, <a href="struct.Bfs.html"><code>Bfs</code></a>, <a href="struct.DfsPostOrder.html"><code>DfsPostOrder</code></a> and
+<a href="struct.Topo.html"><code>Topo</code></a>  are basic visitors and they use “walker” methods: the
+visitors don't hold the graph as borrowed during traversal, only for the
+<code>.next()</code> call on the walker. They can be converted to iterators
+through the <a href="trait.Walker.html"><code>Walker</code></a> trait.</p>
+<p>There is also the callback based traversal <a href="fn.depth_first_search.html"><code>depth_first_search</code></a>.</p>
+<h3 id="other-graph-traits" class="section-header"><a href="#other-graph-traits">Other Graph Traits</a></h3>
+<p>The traits are rather loosely coupled at the moment (which is intentional,
+but will develop a bit), and there are traits missing that could be added.</p>
+<p>Not much is needed to be able to use the visitors on a graph. A graph
+needs to define <a href="trait.GraphBase.html"><code>GraphBase</code></a>, <a href="trait.IntoNeighbors.html"><code>IntoNeighbors</code></a> and
+<a href="trait.Visitable.html"><code>Visitable</code></a> as a minimum.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Bfs.html"
+                                  title='struct petgraph::visit::Bfs'>Bfs</a></td>
+                           <td class='docblock-short'>
+                                <p>A breadth first search (BFS) of a graph.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Dfs.html"
+                                  title='struct petgraph::visit::Dfs'>Dfs</a></td>
+                           <td class='docblock-short'>
+                                <p>Visit nodes of a graph in a depth-first-search (DFS) emitting nodes in
+preorder (when they are first discovered).</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.DfsPostOrder.html"
+                                  title='struct petgraph::visit::DfsPostOrder'>DfsPostOrder</a></td>
+                           <td class='docblock-short'>
+                                <p>Visit nodes in a depth-first-search (DFS) emitting nodes in postorder
+(each node after all its descendants have been emitted).</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.EdgeFiltered.html"
+                                  title='struct petgraph::visit::EdgeFiltered'>EdgeFiltered</a></td>
+                           <td class='docblock-short'>
+                                <p>An edge-filtering graph adaptor.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.EdgeFilteredEdges.html"
+                                  title='struct petgraph::visit::EdgeFilteredEdges'>EdgeFilteredEdges</a></td>
+                           <td class='docblock-short'>
+                                <p>A filtered edges iterator.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.EdgeFilteredNeighbors.html"
+                                  title='struct petgraph::visit::EdgeFilteredNeighbors'>EdgeFilteredNeighbors</a></td>
+                           <td class='docblock-short'>
+                                <p>A filtered neighbors iterator.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.NodeFiltered.html"
+                                  title='struct petgraph::visit::NodeFiltered'>NodeFiltered</a></td>
+                           <td class='docblock-short'>
+                                <p>A node-filtering graph adaptor.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.NodeFilteredEdgeReferences.html"
+                                  title='struct petgraph::visit::NodeFilteredEdgeReferences'>NodeFilteredEdgeReferences</a></td>
+                           <td class='docblock-short'>
+                                <p>A filtered edges iterator.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.NodeFilteredEdges.html"
+                                  title='struct petgraph::visit::NodeFilteredEdges'>NodeFilteredEdges</a></td>
+                           <td class='docblock-short'>
+                                <p>A filtered edges iterator.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.NodeFilteredNeighbors.html"
+                                  title='struct petgraph::visit::NodeFilteredNeighbors'>NodeFilteredNeighbors</a></td>
+                           <td class='docblock-short'>
+                                <p>A filtered neighbors iterator.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.NodeFilteredNodes.html"
+                                  title='struct petgraph::visit::NodeFilteredNodes'>NodeFilteredNodes</a></td>
+                           <td class='docblock-short'>
+                                <p>A filtered node references iterator.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Reversed.html"
+                                  title='struct petgraph::visit::Reversed'>Reversed</a></td>
+                           <td class='docblock-short'>
+                                <p>An edge-reversing graph adaptor.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ReversedEdgeReference.html"
+                                  title='struct petgraph::visit::ReversedEdgeReference'>ReversedEdgeReference</a></td>
+                           <td class='docblock-short'>
+                                <p>A reversed edge reference</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ReversedEdgeReferences.html"
+                                  title='struct petgraph::visit::ReversedEdgeReferences'>ReversedEdgeReferences</a></td>
+                           <td class='docblock-short'>
+                                <p>A reversed edge references iterator.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Time.html"
+                                  title='struct petgraph::visit::Time'>Time</a></td>
+                           <td class='docblock-short'>
+                                <p>Strictly monotonically increasing event time for a depth first search.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Topo.html"
+                                  title='struct petgraph::visit::Topo'>Topo</a></td>
+                           <td class='docblock-short'>
+                                <p>A topological order traversal for a graph.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.WalkerIter.html"
+                                  title='struct petgraph::visit::WalkerIter'>WalkerIter</a></td>
+                           <td class='docblock-short'>
+                                <p>A walker and its context wrapped into an iterator.</p>
+
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.Control.html"
+                                  title='enum petgraph::visit::Control'>Control</a></td>
+                           <td class='docblock-short'>
+                                <p>Control flow for callbacks.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.DfsEvent.html"
+                                  title='enum petgraph::visit::DfsEvent'>DfsEvent</a></td>
+                           <td class='docblock-short'>
+                                <p>A depth first search (DFS) visitor event.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.ControlFlow.html"
+                                  title='trait petgraph::visit::ControlFlow'>ControlFlow</a></td>
+                           <td class='docblock-short'>
+                                <p>Control flow for callbacks.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Data.html"
+                                  title='trait petgraph::visit::Data'>Data</a></td>
+                           <td class='docblock-short'>
+                                <p>Define associated data for nodes and edges</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.EdgeRef.html"
+                                  title='trait petgraph::visit::EdgeRef'>EdgeRef</a></td>
+                           <td class='docblock-short'>
+                                <p>An edge reference.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.FilterEdge.html"
+                                  title='trait petgraph::visit::FilterEdge'>FilterEdge</a></td>
+                           <td class='docblock-short'>
+                                <p>A graph filter for edges</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.FilterNode.html"
+                                  title='trait petgraph::visit::FilterNode'>FilterNode</a></td>
+                           <td class='docblock-short'>
+                                <p>A graph filter for nodes.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.GetAdjacencyMatrix.html"
+                                  title='trait petgraph::visit::GetAdjacencyMatrix'>GetAdjacencyMatrix</a></td>
+                           <td class='docblock-short'>
+                                <p>Create or access the adjacency matrix of a graph.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.GraphBase.html"
+                                  title='trait petgraph::visit::GraphBase'>GraphBase</a></td>
+                           <td class='docblock-short'>
+                                <p>Base graph trait: defines the associated node identifier and
+edge identifier types.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.GraphProp.html"
+                                  title='trait petgraph::visit::GraphProp'>GraphProp</a></td>
+                           <td class='docblock-short'>
+                                <p>Edge kind property (directed or undirected edges)</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.GraphRef.html"
+                                  title='trait petgraph::visit::GraphRef'>GraphRef</a></td>
+                           <td class='docblock-short'>
+                                <p>A copyable reference to a graph.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.IntoEdgeReferences.html"
+                                  title='trait petgraph::visit::IntoEdgeReferences'>IntoEdgeReferences</a></td>
+                           <td class='docblock-short'>
+                                <p>Access to the sequence of the graph’s edges</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.IntoEdges.html"
+                                  title='trait petgraph::visit::IntoEdges'>IntoEdges</a></td>
+                           <td class='docblock-short'>
+                                <p>Access to the edges of each node.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.IntoEdgesDirected.html"
+                                  title='trait petgraph::visit::IntoEdgesDirected'>IntoEdgesDirected</a></td>
+                           <td class='docblock-short'>
+                                <p>Access to all edges of each node, in the specified direction.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.IntoNeighbors.html"
+                                  title='trait petgraph::visit::IntoNeighbors'>IntoNeighbors</a></td>
+                           <td class='docblock-short'>
+                                <p>Access to the neighbors of each node</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.IntoNeighborsDirected.html"
+                                  title='trait petgraph::visit::IntoNeighborsDirected'>IntoNeighborsDirected</a></td>
+                           <td class='docblock-short'>
+                                <p>Access to the neighbors of each node, through incoming or outgoing edges.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.IntoNodeIdentifiers.html"
+                                  title='trait petgraph::visit::IntoNodeIdentifiers'>IntoNodeIdentifiers</a></td>
+                           <td class='docblock-short'>
+                                <p>Access to the sequence of the graph’s <code>NodeId</code>s.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.IntoNodeReferences.html"
+                                  title='trait petgraph::visit::IntoNodeReferences'>IntoNodeReferences</a></td>
+                           <td class='docblock-short'>
+                                <p>Access to the sequence of the graph’s nodes</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.NodeCompactIndexable.html"
+                                  title='trait petgraph::visit::NodeCompactIndexable'>NodeCompactIndexable</a></td>
+                           <td class='docblock-short'>
+                                <p>The graph’s <code>NodeId</code>s map to indices, in a range without holes.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.NodeCount.html"
+                                  title='trait petgraph::visit::NodeCount'>NodeCount</a></td>
+                           <td class='docblock-short'>
+                                <p>A graph with a known node count.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.NodeIndexable.html"
+                                  title='trait petgraph::visit::NodeIndexable'>NodeIndexable</a></td>
+                           <td class='docblock-short'>
+                                <p>The graph’s <code>NodeId</code>s map to indices</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.NodeRef.html"
+                                  title='trait petgraph::visit::NodeRef'>NodeRef</a></td>
+                           <td class='docblock-short'>
+                                <p>A node reference.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.VisitMap.html"
+                                  title='trait petgraph::visit::VisitMap'>VisitMap</a></td>
+                           <td class='docblock-short'>
+                                <p>A mapping for storing the visited status for NodeId <code>N</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Visitable.html"
+                                  title='trait petgraph::visit::Visitable'>Visitable</a></td>
+                           <td class='docblock-short'>
+                                <p>A graph that can create a map that tracks the visited status of its nodes.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Walker.html"
+                                  title='trait petgraph::visit::Walker'>Walker</a></td>
+                           <td class='docblock-short'>
+                                <p>A walker is a traversal state, but where part of the traversal
+information is supplied manually to each next call.</p>
+
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.depth_first_search.html"
+                                  title='fn petgraph::visit::depth_first_search'>depth_first_search</a></td>
+                           <td class='docblock-short'>
+                                <p>A recursive depth first search.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "petgraph";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `UdpSocket` struct in crate `tokio_core`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, UdpSocket">
+
+    <title>tokio_core::net::UdpSocket - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct UdpSocket</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.bind">bind</a><a href="#method.from_socket">from_socket</a><a href="#method.framed">framed</a><a href="#method.local_addr">local_addr</a><a href="#method.connect">connect</a><a href="#method.send">send</a><a href="#method.recv">recv</a><a href="#method.poll_read">poll_read</a><a href="#method.poll_write">poll_write</a><a href="#method.send_to">send_to</a><a href="#method.send_dgram">send_dgram</a><a href="#method.recv_from">recv_from</a><a href="#method.recv_dgram">recv_dgram</a><a href="#method.broadcast">broadcast</a><a href="#method.set_broadcast">set_broadcast</a><a href="#method.multicast_loop_v4">multicast_loop_v4</a><a href="#method.set_multicast_loop_v4">set_multicast_loop_v4</a><a href="#method.multicast_ttl_v4">multicast_ttl_v4</a><a href="#method.set_multicast_ttl_v4">set_multicast_ttl_v4</a><a href="#method.multicast_loop_v6">multicast_loop_v6</a><a href="#method.set_multicast_loop_v6">set_multicast_loop_v6</a><a href="#method.ttl">ttl</a><a href="#method.set_ttl">set_ttl</a><a href="#method.join_multicast_v4">join_multicast_v4</a><a href="#method.join_multicast_v6">join_multicast_v6</a><a href="#method.leave_multicast_v4">leave_multicast_v4</a><a href="#method.leave_multicast_v6">leave_multicast_v6</a><a href="#method.set_only_v6">set_only_v6</a><a href="#method.only_v6">only_v6</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-AsRawFd">AsRawFd</a><a href="#impl-Debug">Debug</a></div></div><p class='location'><a href='../index.html'>tokio_core</a>::<wbr><a href='index.html'>net</a></p><script>window.sidebarCurrent = {name: 'UdpSocket', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>tokio_core</a>::<wbr><a href='index.html'>net</a>::<wbr><a class="struct" href=''>UdpSocket</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#11-13' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct UdpSocket { /* fields omitted */ }</pre><div class='docblock'><p>An I/O object representing a UDP socket.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl <a class="struct" href="../../tokio_core/net/struct.UdpSocket.html" title="struct tokio_core::net::UdpSocket">UdpSocket</a></code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#18-390' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.bind' class="method"><span id='bind.v' class='invisible'><code>pub fn <a href='#method.bind' class='fnname'>bind</a>(addr: &amp;<a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a>, handle: &amp;<a class="struct" href="../../tokio_core/reactor/struct.Handle.html" title="struct tokio_core::reactor::Handle">Handle</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="struct" href="../../tokio_core/net/struct.UdpSocket.html" title="struct tokio_core::net::UdpSocket">UdpSocket</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#23-26' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Create a new UDP socket bound to the specified address.</p>
+<p>This function will create a new UDP socket and attempt to bind it to the
+<code>addr</code> provided. If the result is <code>Ok</code>, the socket has successfully bound.</p>
+</div><h4 id='method.from_socket' class="method"><span id='from_socket.v' class='invisible'><code>pub fn <a href='#method.from_socket' class='fnname'>from_socket</a>(socket: <a class="struct" href="https://doc.rust-lang.org/nightly/std/net/udp/struct.UdpSocket.html" title="struct std::net::udp::UdpSocket">UdpSocket</a>, handle: &amp;<a class="struct" href="../../tokio_core/reactor/struct.Handle.html" title="struct tokio_core::reactor::Handle">Handle</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="struct" href="../../tokio_core/net/struct.UdpSocket.html" title="struct tokio_core::net::UdpSocket">UdpSocket</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#42-46' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Creates a new <code>UdpSocket</code> from the previously bound socket provided.</p>
+<p>The socket given will be registered with the event loop that <code>handle</code> is
+associated with. This function requires that <code>socket</code> has previously
+been bound to an address to work correctly.</p>
+<p>This can be used in conjunction with net2's <code>UdpBuilder</code> interface to
+configure a socket before it's handed off, such as setting options like
+<code>reuse_address</code> or binding to multiple addresses.</p>
+</div><h4 id='method.framed' class="method"><span id='framed.v' class='invisible'><code>pub fn <a href='#method.framed' class='fnname'>framed</a>&lt;C:&nbsp;<a class="trait" href="../../tokio_core/net/trait.UdpCodec.html" title="trait tokio_core::net::UdpCodec">UdpCodec</a>&gt;(self, codec: C) -&gt; <a class="struct" href="../../tokio_core/net/struct.UdpFramed.html" title="struct tokio_core::net::UdpFramed">UdpFramed</a>&lt;C&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#67-69' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Provides a <code>Stream</code> and <code>Sink</code> interface for reading and writing to this
+<code>UdpSocket</code> object, using the provided <code>UdpCodec</code> to read and write the
+raw data.</p>
+<p>Raw UDP sockets work with datagrams, but higher-level code usually
+wants to batch these into meaningful chunks, called &quot;frames&quot;. This
+method layers framing on top of this socket by using the <code>UdpCodec</code>
+trait to handle encoding and decoding of messages frames. Note that
+the incoming and outgoing frame types may be distinct.</p>
+<p>This function returns a <em>single</em> object that is both <code>Stream</code> and
+<code>Sink</code>; grouping this into a single object is often useful for layering
+things which require both read and write access to the underlying
+object.</p>
+<p>If you want to work more directly with the streams and sink, consider
+calling <code>split</code> on the <code>UdpFramed</code> returned by this method, which will
+break them into separate objects, allowing them to interact more
+easily.</p>
+</div><h4 id='method.local_addr' class="method"><span id='local_addr.v' class='invisible'><code>pub fn <a href='#method.local_addr' class='fnname'>local_addr</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#72-74' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the local address that this stream is bound to.</p>
+</div><h4 id='method.connect' class="method"><span id='connect.v' class='invisible'><code>pub fn <a href='#method.connect' class='fnname'>connect</a>(&amp;self, addr: &amp;<a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#78-80' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Connects the UDP socket setting the default destination for send() and
+limiting packets that are read via recv from the address specified in addr.</p>
+</div><h4 id='method.send' class="method"><span id='send.v' class='invisible'><code>pub fn <a href='#method.send' class='fnname'>send</a>(&amp;self, buf: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#84-97' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sends data on the socket to the address previously bound via connect().
+On success, returns the number of bytes written.</p>
+</div><h4 id='method.recv' class="method"><span id='recv.v' class='invisible'><code>pub fn <a href='#method.recv' class='fnname'>recv</a>(&amp;self, buf: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;mut [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#101-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Receives data from the socket previously bound with connect().
+On success, returns the number of bytes read.</p>
+</div><h4 id='method.poll_read' class="method"><span id='poll_read.v' class='invisible'><code>pub fn <a href='#method.poll_read' class='fnname'>poll_read</a>(&amp;self) -&gt; <a class="enum" href="../../futures/poll/enum.Async.html" title="enum futures::poll::Async">Async</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#122-132' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Test whether this socket is ready to be read or not.</p>
+<p>If the socket is <em>not</em> readable then the current task is scheduled to
+get a notification when the socket does become readable. That is, this
+is only suitable for calling in a <code>Future::poll</code> method and will
+automatically handle ensuring a retry once the socket is readable again.</p>
+</div><h4 id='method.poll_write' class="method"><span id='poll_write.v' class='invisible'><code>pub fn <a href='#method.poll_write' class='fnname'>poll_write</a>(&amp;self) -&gt; <a class="enum" href="../../futures/poll/enum.Async.html" title="enum futures::poll::Async">Async</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#140-150' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Test whether this socket is ready to be written to or not.</p>
+<p>If the socket is <em>not</em> writable then the current task is scheduled to
+get a notification when the socket does become writable. That is, this
+is only suitable for calling in a <code>Future::poll</code> method and will
+automatically handle ensuring a retry once the socket is writable again.</p>
+</div><h4 id='method.send_to' class="method"><span id='send_to.v' class='invisible'><code>pub fn <a href='#method.send_to' class='fnname'>send_to</a>(&amp;self, buf: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, target: &amp;<a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#157-170' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sends data on the socket to the given address. On success, returns the
+number of bytes written.</p>
+<p>Address type can be any implementer of <code>ToSocketAddrs</code> trait. See its
+documentation for concrete examples.</p>
+</div><h4 id='method.send_dgram' class="method"><span id='send_dgram.v' class='invisible'><code>pub fn <a href='#method.send_dgram' class='fnname'>send_dgram</a>&lt;T&gt;(self, buf: T, addr: <a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a>) -&gt; <a class="struct" href="../../tokio_core/net/struct.SendDgram.html" title="struct tokio_core::net::SendDgram">SendDgram</a>&lt;T&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html" title="trait core::convert::AsRef">AsRef</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">[</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#187-191' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Creates a future that will write the entire contents of the buffer
+<code>buf</code> provided as a datagram to this socket.</p>
+<p>The returned future will return after data has been written to the
+outbound socket.  The future will resolve to the stream as well as the
+buffer (for reuse if needed).</p>
+<p>Any error which happens during writing will cause both the stream and
+the buffer to get destroyed. Note that failure to write the entire
+buffer is considered an error for the purposes of sending a datagram.</p>
+<p>The <code>buf</code> parameter here only requires the <code>AsRef&lt;[u8]&gt;</code> trait, which
+should be broadly applicable to accepting data which can be converted
+to a slice.  The <code>Window</code> struct is also available in this crate to
+provide a different window into a slice if necessary.</p>
+</div><h4 id='method.recv_from' class="method"><span id='recv_from.v' class='invisible'><code>pub fn <a href='#method.recv_from' class='fnname'>recv_from</a>(&amp;self, buf: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;mut [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#195-208' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Receives data from the socket. On success, returns the number of bytes
+read and the address from whence the data came.</p>
+</div><h4 id='method.recv_dgram' class="method"><span id='recv_dgram.v' class='invisible'><code>pub fn <a href='#method.recv_dgram' class='fnname'>recv_dgram</a>&lt;T&gt;(self, buf: T) -&gt; <a class="struct" href="../../tokio_core/net/struct.RecvDgram.html" title="struct tokio_core::net::RecvDgram">RecvDgram</a>&lt;T&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.AsMut.html" title="trait core::convert::AsMut">AsMut</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">[</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#224-228' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Creates a future that receive a datagram to be written to the buffer
+provided.</p>
+<p>The returned future will return after a datagram has been received on
+this socket. The future will resolve to the socket, the buffer, the
+amount of data read, and the address the data was received from.</p>
+<p>An error during reading will cause the socket and buffer to get
+destroyed and the socket will be returned.</p>
+<p>The <code>buf</code> parameter here only requires the <code>AsMut&lt;[u8]&gt;</code> trait, which
+should be broadly applicable to accepting data which can be converted
+to a slice.  The <code>Window</code> struct is also available in this crate to
+provide a different window into a slice if necessary.</p>
+</div><h4 id='method.broadcast' class="method"><span id='broadcast.v' class='invisible'><code>pub fn <a href='#method.broadcast' class='fnname'>broadcast</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#236-238' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Gets the value of the <code>SO_BROADCAST</code> option for this socket.</p>
+<p>For more information about this option, see
+<a href="#method.set_broadcast"><code>set_broadcast</code></a>.</p>
+</div><h4 id='method.set_broadcast' class="method"><span id='set_broadcast.v' class='invisible'><code>pub fn <a href='#method.set_broadcast' class='fnname'>set_broadcast</a>(&amp;self, on: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#244-246' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sets the value of the <code>SO_BROADCAST</code> option for this socket.</p>
+<p>When enabled, this socket is allowed to send packets to a broadcast
+address.</p>
+</div><h4 id='method.multicast_loop_v4' class="method"><span id='multicast_loop_v4.v' class='invisible'><code>pub fn <a href='#method.multicast_loop_v4' class='fnname'>multicast_loop_v4</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#254-256' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Gets the value of the <code>IP_MULTICAST_LOOP</code> option for this socket.</p>
+<p>For more information about this option, see
+<a href="#method.set_multicast_loop_v4"><code>set_multicast_loop_v4</code></a>.</p>
+</div><h4 id='method.set_multicast_loop_v4' class="method"><span id='set_multicast_loop_v4.v' class='invisible'><code>pub fn <a href='#method.set_multicast_loop_v4' class='fnname'>set_multicast_loop_v4</a>(&amp;self, on: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#262-264' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sets the value of the <code>IP_MULTICAST_LOOP</code> option for this socket.</p>
+<p>If enabled, multicast packets will be looped back to the local socket.
+Note that this may not have any affect on IPv6 sockets.</p>
+</div><h4 id='method.multicast_ttl_v4' class="method"><span id='multicast_ttl_v4.v' class='invisible'><code>pub fn <a href='#method.multicast_ttl_v4' class='fnname'>multicast_ttl_v4</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#272-274' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Gets the value of the <code>IP_MULTICAST_TTL</code> option for this socket.</p>
+<p>For more information about this option, see
+<a href="#method.set_multicast_ttl_v4"><code>set_multicast_ttl_v4</code></a>.</p>
+</div><h4 id='method.set_multicast_ttl_v4' class="method"><span id='set_multicast_ttl_v4.v' class='invisible'><code>pub fn <a href='#method.set_multicast_ttl_v4' class='fnname'>set_multicast_ttl_v4</a>(&amp;self, ttl: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#283-285' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sets the value of the <code>IP_MULTICAST_TTL</code> option for this socket.</p>
+<p>Indicates the time-to-live value of outgoing multicast packets for
+this socket. The default value is 1 which means that multicast packets
+don't leave the local network unless explicitly requested.</p>
+<p>Note that this may not have any affect on IPv6 sockets.</p>
+</div><h4 id='method.multicast_loop_v6' class="method"><span id='multicast_loop_v6.v' class='invisible'><code>pub fn <a href='#method.multicast_loop_v6' class='fnname'>multicast_loop_v6</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#293-295' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Gets the value of the <code>IPV6_MULTICAST_LOOP</code> option for this socket.</p>
+<p>For more information about this option, see
+<a href="#method.set_multicast_loop_v6"><code>set_multicast_loop_v6</code></a>.</p>
+</div><h4 id='method.set_multicast_loop_v6' class="method"><span id='set_multicast_loop_v6.v' class='invisible'><code>pub fn <a href='#method.set_multicast_loop_v6' class='fnname'>set_multicast_loop_v6</a>(&amp;self, on: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#301-303' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sets the value of the <code>IPV6_MULTICAST_LOOP</code> option for this socket.</p>
+<p>Controls whether this socket sees the multicast packets it sends itself.
+Note that this may not have any affect on IPv4 sockets.</p>
+</div><h4 id='method.ttl' class="method"><span id='ttl.v' class='invisible'><code>pub fn <a href='#method.ttl' class='fnname'>ttl</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#310-312' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Gets the value of the <code>IP_TTL</code> option for this socket.</p>
+<p>For more information about this option, see <a href="#method.set_ttl"><code>set_ttl</code></a>.</p>
+</div><h4 id='method.set_ttl' class="method"><span id='set_ttl.v' class='invisible'><code>pub fn <a href='#method.set_ttl' class='fnname'>set_ttl</a>(&amp;self, ttl: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#318-320' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sets the value for the <code>IP_TTL</code> option on this socket.</p>
+<p>This value sets the time-to-live field that is used in every packet sent
+from this socket.</p>
+</div><h4 id='method.join_multicast_v4' class="method"><span id='join_multicast_v4.v' class='invisible'><code>pub fn <a href='#method.join_multicast_v4' class='fnname'>join_multicast_v4</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;multiaddr: &amp;<a class="struct" href="https://doc.rust-lang.org/nightly/std/net/ip/struct.Ipv4Addr.html" title="struct std::net::ip::Ipv4Addr">Ipv4Addr</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;interface: &amp;<a class="struct" href="https://doc.rust-lang.org/nightly/std/net/ip/struct.Ipv4Addr.html" title="struct std::net::ip::Ipv4Addr">Ipv4Addr</a><br>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#329-333' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Executes an operation of the <code>IP_ADD_MEMBERSHIP</code> type.</p>
+<p>This function specifies a new multicast group for this socket to join.
+The address must be a valid multicast address, and <code>interface</code> is the
+address of the local interface with which the system should join the
+multicast group. If it's equal to <code>INADDR_ANY</code> then an appropriate
+interface is chosen by the system.</p>
+</div><h4 id='method.join_multicast_v6' class="method"><span id='join_multicast_v6.v' class='invisible'><code>pub fn <a href='#method.join_multicast_v6' class='fnname'>join_multicast_v6</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;multiaddr: &amp;<a class="struct" href="https://doc.rust-lang.org/nightly/std/net/ip/struct.Ipv6Addr.html" title="struct std::net::ip::Ipv6Addr">Ipv6Addr</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;interface: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a><br>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#340-344' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Executes an operation of the <code>IPV6_ADD_MEMBERSHIP</code> type.</p>
+<p>This function specifies a new multicast group for this socket to join.
+The address must be a valid multicast address, and <code>interface</code> is the
+index of the interface to join/leave (or 0 to indicate any interface).</p>
+</div><h4 id='method.leave_multicast_v4' class="method"><span id='leave_multicast_v4.v' class='invisible'><code>pub fn <a href='#method.leave_multicast_v4' class='fnname'>leave_multicast_v4</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;multiaddr: &amp;<a class="struct" href="https://doc.rust-lang.org/nightly/std/net/ip/struct.Ipv4Addr.html" title="struct std::net::ip::Ipv4Addr">Ipv4Addr</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;interface: &amp;<a class="struct" href="https://doc.rust-lang.org/nightly/std/net/ip/struct.Ipv4Addr.html" title="struct std::net::ip::Ipv4Addr">Ipv4Addr</a><br>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#352-356' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Executes an operation of the <code>IP_DROP_MEMBERSHIP</code> type.</p>
+<p>For more information about this option, see
+<a href="#method.join_multicast_v4"><code>join_multicast_v4</code></a>.</p>
+</div><h4 id='method.leave_multicast_v6' class="method"><span id='leave_multicast_v6.v' class='invisible'><code>pub fn <a href='#method.leave_multicast_v6' class='fnname'>leave_multicast_v6</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;multiaddr: &amp;<a class="struct" href="https://doc.rust-lang.org/nightly/std/net/ip/struct.Ipv6Addr.html" title="struct std::net::ip::Ipv6Addr">Ipv6Addr</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;interface: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a><br>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#364-368' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Executes an operation of the <code>IPV6_DROP_MEMBERSHIP</code> type.</p>
+<p>For more information about this option, see
+<a href="#method.join_multicast_v6"><code>join_multicast_v6</code></a>.</p>
+</div><h4 id='method.set_only_v6' class="method"><span id='set_only_v6.v' class='invisible'><code>pub fn <a href='#method.set_only_v6' class='fnname'>set_only_v6</a>(&amp;self, only_v6: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#378-380' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sets the value for the <code>IPV6_V6ONLY</code> option on this socket.</p>
+<p>If this is set to <code>true</code> then the socket is restricted to sending and
+receiving IPv6 packets only. In this case two IPv4 and IPv6 applications
+can bind the same port at the same time.</p>
+<p>If this is set to <code>false</code> then the socket can be used to send and
+receive packets from an IPv4-mapped IPv6 address.</p>
+</div><h4 id='method.only_v6' class="method"><span id='only_v6.v' class='invisible'><code>pub fn <a href='#method.only_v6' class='fnname'>only_v6</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#387-389' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Gets the value of the <code>IPV6_V6ONLY</code> option for this socket.</p>
+<p>For more information about this option, see <a href="#method.set_only_v6"><code>set_only_v6</code></a>.</p>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-AsRawFd' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/std/sys/unix/ext/io/trait.AsRawFd.html" title="trait std::sys::unix::ext::io::AsRawFd">AsRawFd</a> for <a class="struct" href="../../tokio_core/net/struct.UdpSocket.html" title="struct tokio_core::net::UdpSocket">UdpSocket</a></code><a href='#impl-AsRawFd' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#460-464' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.as_raw_fd' class="method"><span id='as_raw_fd.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/std/sys/unix/ext/io/trait.AsRawFd.html#tymethod.as_raw_fd' class='fnname'>as_raw_fd</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/sys/unix/ext/io/type.RawFd.html" title="type std::sys::unix::ext::io::RawFd">RawFd</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#461-463' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Extracts the raw file descriptor. <a href="https://doc.rust-lang.org/nightly/std/sys/unix/ext/io/trait.AsRawFd.html#tymethod.as_raw_fd">Read more</a></p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../../tokio_core/net/struct.UdpSocket.html" title="struct tokio_core::net::UdpSocket">UdpSocket</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#392-396' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/udp/mod.rs.html#393-395' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio_core";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

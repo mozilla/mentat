@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Store","A convenience wrapper around a single SQLite connection and a Conn. This is suitable for applications that don't require complex connection management."]]});

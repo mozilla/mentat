@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["file","Types for working with [`File`]."]],"struct":[["File","A reference to an open file on the filesystem."]]});

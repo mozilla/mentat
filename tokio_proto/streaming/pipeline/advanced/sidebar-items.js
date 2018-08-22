@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Pipeline","Provides protocol pipelining functionality in a generic way over clients and servers. Used internally by `pipeline::Client` and `pipeline::Server`."]],"trait":[["Dispatch","Dispatch messages from the transport to the service"]],"type":[["PipelineMessage","Message used to communicate through the multiplex dispatch"]]});

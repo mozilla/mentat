@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Build` trait in crate `petgraph`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Build">
+
+    <title>petgraph::data::Build - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait Build</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.add_node">add_node</a><a href="#tymethod.update_edge">update_edge</a></div><a class="sidebar-title" href="#provided-methods">Provided Methods</a><div class="sidebar-links"><a href="#method.add_edge">add_edge</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='../index.html'>petgraph</a>::<wbr><a href='index.html'>data</a></p><script>window.sidebarCurrent = {name: 'Build', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>petgraph</a>::<wbr><a href='index.html'>data</a>::<wbr><a class="trait" href=''>Build</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/petgraph/data.rs.html#50-66' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait Build: <a class="trait" href="../../petgraph/visit/trait.Data.html" title="trait petgraph::visit::Data">Data</a> + <a class="trait" href="../../petgraph/visit/trait.NodeCount.html" title="trait petgraph::visit::NodeCount">NodeCount</a> {
+    fn <a href='#tymethod.add_node' class='fnname'>add_node</a>(&amp;mut self, weight: Self::<a class="type" href="../../petgraph/visit/trait.Data.html#associatedtype.NodeWeight" title="type petgraph::visit::Data::NodeWeight">NodeWeight</a>) -&gt; Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a>;
+<div class='item-spacer'></div>    fn <a href='#tymethod.update_edge' class='fnname'>update_edge</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a: Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b: Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;weight: Self::<a class="type" href="../../petgraph/visit/trait.Data.html#associatedtype.EdgeWeight" title="type petgraph::visit::Data::EdgeWeight">EdgeWeight</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.EdgeId" title="type petgraph::visit::GraphBase::EdgeId">EdgeId</a>;
+
+    fn <a href='#method.add_edge' class='fnname'>add_edge</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a: Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b: Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;weight: Self::<a class="type" href="../../petgraph/visit/trait.Data.html#associatedtype.EdgeWeight" title="type petgraph::visit::Data::EdgeWeight">EdgeWeight</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.EdgeId" title="type petgraph::visit::GraphBase::EdgeId">EdgeId</a>&gt; { ... }
+}</pre><div class='docblock'><p>A graph that can be extended with further nodes and edges</p>
+</div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.add_node' class='method'><span id='add_node.v' class='invisible'><code>fn <a href='#tymethod.add_node' class='fnname'>add_node</a>(&amp;mut self, weight: Self::<a class="type" href="../../petgraph/visit/trait.Data.html#associatedtype.NodeWeight" title="type petgraph::visit::Data::NodeWeight">NodeWeight</a>) -&gt; Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a></code></span></h3><h3 id='tymethod.update_edge' class='method'><span id='update_edge.v' class='invisible'><code>fn <a href='#tymethod.update_edge' class='fnname'>update_edge</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;a: Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;b: Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;weight: Self::<a class="type" href="../../petgraph/visit/trait.Data.html#associatedtype.EdgeWeight" title="type petgraph::visit::Data::EdgeWeight">EdgeWeight</a><br>) -&gt; Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.EdgeId" title="type petgraph::visit::GraphBase::EdgeId">EdgeId</a></code></span></h3><div class='docblock'><p>Add or update the edge from <code>a</code> to <code>b</code>. Return the id of the affected
+edge.</p>
+</div></div>
+            <h2 id='provided-methods' class='small-section-header'>
+              Provided Methods<a href='#provided-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='method.add_edge' class='method'><span id='add_edge.v' class='invisible'><code>fn <a href='#method.add_edge' class='fnname'>add_edge</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;a: Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;b: Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.NodeId" title="type petgraph::visit::GraphBase::NodeId">NodeId</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;weight: Self::<a class="type" href="../../petgraph/visit/trait.Data.html#associatedtype.EdgeWeight" title="type petgraph::visit::Data::EdgeWeight">EdgeWeight</a><br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self::<a class="type" href="../../petgraph/visit/trait.GraphBase.html#associatedtype.EdgeId" title="type petgraph::visit::GraphBase::EdgeId">EdgeId</a>&gt;</code></span></h3><div class='docblock'><p>Add a new edge. If parallel edges (duplicate) are not allowed and
+the edge already exists, return <code>None</code>.</p>
+</div></div>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><div class='out-of-band'><a class='srclink' href='../../src/petgraph/data.rs.html#130-151' title='goto source code'>[src]</a></div><code>impl&lt;N, E, Ty, Ix&gt; Build for <a class="struct" href="../../petgraph/graph/struct.Graph.html" title="struct petgraph::graph::Graph">Graph</a>&lt;N, E, Ty, Ix&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;Ty: <a class="trait" href="../../petgraph/trait.EdgeType.html" title="trait petgraph::EdgeType">EdgeType</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;Ix: <a class="trait" href="../../petgraph/graph/trait.IndexType.html" title="trait petgraph::graph::IndexType">IndexType</a>,&nbsp;</span></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/petgraph/data.rs.html#154-175' title='goto source code'>[src]</a></div><code>impl&lt;N, E, Ty, Ix&gt; Build for <a class="struct" href="../../petgraph/stable_graph/struct.StableGraph.html" title="struct petgraph::stable_graph::StableGraph">StableGraph</a>&lt;N, E, Ty, Ix&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;Ty: <a class="trait" href="../../petgraph/trait.EdgeType.html" title="trait petgraph::EdgeType">EdgeType</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;Ix: <a class="trait" href="../../petgraph/graph/trait.IndexType.html" title="trait petgraph::graph::IndexType">IndexType</a>,&nbsp;</span></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../../src/petgraph/data.rs.html#178-206' title='goto source code'>[src]</a></div><code>impl&lt;N, E, Ty&gt; Build for <a class="struct" href="../../petgraph/graphmap/struct.GraphMap.html" title="struct petgraph::graphmap::GraphMap">GraphMap</a>&lt;N, E, Ty&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;Ty: <a class="trait" href="../../petgraph/trait.EdgeType.html" title="trait petgraph::EdgeType">EdgeType</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;N: <a class="trait" href="../../petgraph/graphmap/trait.NodeTrait.html" title="trait petgraph::graphmap::NodeTrait">NodeTrait</a>,&nbsp;</span></code></li>
+</ul><script type="text/javascript" async
+                         src="../../implementors/petgraph/data/trait.Build.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "petgraph";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

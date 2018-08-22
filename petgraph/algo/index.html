@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `algo` mod in crate `petgraph`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, algo">
+
+    <title>petgraph::algo - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module algo</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>petgraph</a></p><script>window.sidebarCurrent = {name: 'algo', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>petgraph</a>::<wbr><a class="mod" href=''>algo</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/petgraph/algo/mod.rs.html#1-625' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>Graph algorithms.</p>
+<p>It is a goal to gradually migrate the algorithms to be based on graph traits
+so that they are generally applicable. For now, some of these still require
+the <code>Graph</code> type.</p>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="dominators/index.html"
+                                  title='mod petgraph::algo::dominators'>dominators</a></td>
+                           <td class='docblock-short'>
+                                <p>Compute dominators of a control-flow graph.</p>
+
+                           </td>
+                       </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Cycle.html"
+                                  title='struct petgraph::algo::Cycle'>Cycle</a></td>
+                           <td class='docblock-short'>
+                                <p>An algorithm error: a cycle was found in the graph.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.DfsSpace.html"
+                                  title='struct petgraph::algo::DfsSpace'>DfsSpace</a></td>
+                           <td class='docblock-short'>
+                                <p>Workspace for a graph traversal.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.MinSpanningTree.html"
+                                  title='struct petgraph::algo::MinSpanningTree'>MinSpanningTree</a></td>
+                           <td class='docblock-short'>
+                                <p>An iterator producing a minimum spanning forest of a graph.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.NegativeCycle.html"
+                                  title='struct petgraph::algo::NegativeCycle'>NegativeCycle</a></td>
+                           <td class='docblock-short'>
+                                <p>An algorithm error: a cycle of negative weights was found in the graph.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.FloatMeasure.html"
+                                  title='trait petgraph::algo::FloatMeasure'>FloatMeasure</a></td>
+                           <td class='docblock-short'>
+                                <p>A floating-point measure.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Measure.html"
+                                  title='trait petgraph::algo::Measure'>Measure</a></td>
+                           <td class='docblock-short'>
+                                <p>Associated data that can be used for measures (such as length).</p>
+
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.astar.html"
+                                  title='fn petgraph::algo::astar'>astar</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] A* shortest path algorithm.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.bellman_ford.html"
+                                  title='fn petgraph::algo::bellman_ford'>bellman_ford</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Compute shortest paths from node <code>source</code> to all other.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.condensation.html"
+                                  title='fn petgraph::algo::condensation'>condensation</a></td>
+                           <td class='docblock-short'>
+                                <p>[Graph] Condense every strongly connected component into a single node and return the result.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.connected_components.html"
+                                  title='fn petgraph::algo::connected_components'>connected_components</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Return the number of connected components of the graph.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.dijkstra.html"
+                                  title='fn petgraph::algo::dijkstra'>dijkstra</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Dijkstra's shortest path algorithm.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.has_path_connecting.html"
+                                  title='fn petgraph::algo::has_path_connecting'>has_path_connecting</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Check if there exists a path starting at <code>from</code> and reaching <code>to</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.is_cyclic_directed.html"
+                                  title='fn petgraph::algo::is_cyclic_directed'>is_cyclic_directed</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Return <code>true</code> if the input directed graph contains a cycle.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.is_cyclic_undirected.html"
+                                  title='fn petgraph::algo::is_cyclic_undirected'>is_cyclic_undirected</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Return <code>true</code> if the input graph contains a cycle.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.is_isomorphic.html"
+                                  title='fn petgraph::algo::is_isomorphic'>is_isomorphic</a></td>
+                           <td class='docblock-short'>
+                                <p>[Graph] Return <code>true</code> if the graphs <code>g0</code> and <code>g1</code> are isomorphic.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.is_isomorphic_matching.html"
+                                  title='fn petgraph::algo::is_isomorphic_matching'>is_isomorphic_matching</a></td>
+                           <td class='docblock-short'>
+                                <p>[Graph] Return <code>true</code> if the graphs <code>g0</code> and <code>g1</code> are isomorphic.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.kosaraju_scc.html"
+                                  title='fn petgraph::algo::kosaraju_scc'>kosaraju_scc</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Compute the <em>strongly connected components</em> using <a href="https://en.wikipedia.org/wiki/Kosaraju%27s_algorithm">Kosaraju's algorithm</a>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.min_spanning_tree.html"
+                                  title='fn petgraph::algo::min_spanning_tree'>min_spanning_tree</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Compute a <em>minimum spanning tree</em> of a graph.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.scc.html"
+                                  title='fn petgraph::algo::scc'>scc</a></td>
+                           <td class='docblock-short'>
+                               [<div class='stab deprecated'>Deprecated</div>] <p>Renamed to <code>kosaraju_scc</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.tarjan_scc.html"
+                                  title='fn petgraph::algo::tarjan_scc'>tarjan_scc</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Compute the <em>strongly connected components</em> using <a href="https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm">Tarjan's algorithm</a>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.toposort.html"
+                                  title='fn petgraph::algo::toposort'>toposort</a></td>
+                           <td class='docblock-short'>
+                                <p>[Generic] Perform a topological sort of a directed graph.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "petgraph";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

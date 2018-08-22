@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["EntityBuilder",""],["InProgressBuilder",""],["TermBuilder",""]],"trait":[["BuildTerms",""]],"type":[["Terms",""]]});

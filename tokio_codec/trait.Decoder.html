@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Decoder` trait in crate `tokio_codec`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Decoder">
+
+    <title>tokio_codec::Decoder - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait Decoder</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#associated-types">Associated Types</a><div class="sidebar-links"><a href="#associatedtype.Item">Item</a><a href="#associatedtype.Error">Error</a></div><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.decode">decode</a></div><a class="sidebar-title" href="#provided-methods">Provided Methods</a><div class="sidebar-links"><a href="#method.decode_eof">decode_eof</a><a href="#method.framed">framed</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='index.html'>tokio_codec</a></p><script>window.sidebarCurrent = {name: 'Decoder', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>tokio_codec</a>::<wbr><a class="trait" href=''>Decoder</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/tokio_io/codec/decoder.rs.html#22-117' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait Decoder {
+    type <a href='#associatedtype.Item' class="type">Item</a>;
+    type <a href='#associatedtype.Error' class="type">Error</a>: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">Error</a>&gt;;
+    fn <a href='#tymethod.decode' class='fnname'>decode</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src: &amp;mut <a class="struct" href="../bytes/bytes/struct.BytesMut.html" title="struct bytes::bytes::BytesMut">BytesMut</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self::<a class="type" href="../tokio_codec/trait.Decoder.html#associatedtype.Item" title="type tokio_codec::Decoder::Item">Item</a>&gt;, Self::<a class="type" href="../tokio_codec/trait.Decoder.html#associatedtype.Error" title="type tokio_codec::Decoder::Error">Error</a>&gt;;
+
+    fn <a href='#method.decode_eof' class='fnname'>decode_eof</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;buf: &amp;mut <a class="struct" href="../bytes/bytes/struct.BytesMut.html" title="struct bytes::bytes::BytesMut">BytesMut</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self::<a class="type" href="../tokio_codec/trait.Decoder.html#associatedtype.Item" title="type tokio_codec::Decoder::Item">Item</a>&gt;, Self::<a class="type" href="../tokio_codec/trait.Decoder.html#associatedtype.Error" title="type tokio_codec::Decoder::Error">Error</a>&gt; { ... }
+<div class='item-spacer'></div>    fn <a href='#method.framed' class='fnname'>framed</a>&lt;T&gt;(self, io: T) -&gt; <a class="struct" href="../tokio_codec/struct.Framed.html" title="struct tokio_codec::Framed">Framed</a>&lt;T, Self&gt;<br>&nbsp;&nbsp;&nbsp; <span class="where">where<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Self: <a class="trait" href="../tokio_codec/trait.Encoder.html" title="trait tokio_codec::Encoder">Encoder</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="../tokio_io/async_read/trait.AsyncRead.html" title="trait tokio_io::async_read::AsyncRead">AsyncRead</a> + <a class="trait" href="../tokio_io/async_write/trait.AsyncWrite.html" title="trait tokio_io::async_write::AsyncWrite">AsyncWrite</a></span>,
+    { ... }
+}</pre><div class='docblock'><p>Decoding of frames via buffers.</p>
+<p>This trait is used when constructing an instance of <code>Framed</code> or
+<code>FramedRead</code>. An implementation of <code>Decoder</code> takes a byte stream that has
+already been buffered in <code>src</code> and decodes the data into a stream of
+<code>Self::Item</code> frames.</p>
+<p>Implementations are able to track state on <code>self</code>, which enables
+implementing stateful streaming parsers. In many cases, though, this type
+will simply be a unit struct (e.g. <code>struct HttpDecoder</code>).</p>
+</div>
+            <h2 id='associated-types' class='small-section-header'>
+              Associated Types<a href='#associated-types' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='associatedtype.Item' class='method'><span id='Item.t' class='invisible'><code>type <a href='#associatedtype.Item' class="type">Item</a></code></span></h3><div class='docblock'><p>The type of decoded frames.</p>
+</div><h3 id='associatedtype.Error' class='method'><span id='Error.t' class='invisible'><code>type <a href='#associatedtype.Error' class="type">Error</a>: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">Error</a>&gt;</code></span></h3><div class='docblock'><p>The type of unrecoverable frame decoding errors.</p>
+<p>If an individual message is ill-formed but can be ignored without
+interfering with the processing of future messages, it may be more
+useful to report the failure as an <code>Item</code>.</p>
+<p><code>From&lt;io::Error&gt;</code> is required in the interest of making <code>Error</code> suitable
+for returning directly from a <code>FramedRead</code>, and to enable the default
+implementation of <code>decode_eof</code> to yield an <code>io::Error</code> when the decoder
+fails to consume all available data.</p>
+<p>Note that implementors of this trait can simply indicate <code>type Error = io::Error</code> to use I/O errors as this type.</p>
+</div></div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.decode' class='method'><span id='decode.v' class='invisible'><code>fn <a href='#tymethod.decode' class='fnname'>decode</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;src: &amp;mut <a class="struct" href="../bytes/bytes/struct.BytesMut.html" title="struct bytes::bytes::BytesMut">BytesMut</a><br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self::<a class="type" href="../tokio_codec/trait.Decoder.html#associatedtype.Item" title="type tokio_codec::Decoder::Item">Item</a>&gt;, Self::<a class="type" href="../tokio_codec/trait.Decoder.html#associatedtype.Error" title="type tokio_codec::Decoder::Error">Error</a>&gt;</code></span></h3><div class='docblock'><p>Attempts to decode a frame from the provided buffer of bytes.</p>
+<p>This method is called by <code>FramedRead</code> whenever bytes are ready to be
+parsed.  The provided buffer of bytes is what's been read so far, and
+this instance of <code>Decode</code> can determine whether an entire frame is in
+the buffer and is ready to be returned.</p>
+<p>If an entire frame is available, then this instance will remove those
+bytes from the buffer provided and return them as a decoded
+frame. Note that removing bytes from the provided buffer doesn't always
+necessarily copy the bytes, so this should be an efficient operation in
+most circumstances.</p>
+<p>If the bytes look valid, but a frame isn't fully available yet, then
+<code>Ok(None)</code> is returned. This indicates to the <code>Framed</code> instance that
+it needs to read some more bytes before calling this method again.</p>
+<p>Note that the bytes provided may be empty. If a previous call to
+<code>decode</code> consumed all the bytes in the buffer then <code>decode</code> will be
+called again until it returns <code>None</code>, indicating that more bytes need to
+be read.</p>
+<p>Finally, if the bytes in the buffer are malformed then an error is
+returned indicating why. This informs <code>Framed</code> that the stream is now
+corrupt and should be terminated.</p>
+</div></div>
+            <h2 id='provided-methods' class='small-section-header'>
+              Provided Methods<a href='#provided-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='method.decode_eof' class='method'><span id='decode_eof.v' class='invisible'><code>fn <a href='#method.decode_eof' class='fnname'>decode_eof</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;buf: &amp;mut <a class="struct" href="../bytes/bytes/struct.BytesMut.html" title="struct bytes::bytes::BytesMut">BytesMut</a><br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self::<a class="type" href="../tokio_codec/trait.Decoder.html#associatedtype.Item" title="type tokio_codec::Decoder::Item">Item</a>&gt;, Self::<a class="type" href="../tokio_codec/trait.Decoder.html#associatedtype.Error" title="type tokio_codec::Decoder::Error">Error</a>&gt;</code></span></h3><div class='docblock'><p>A default method available to be called when there are no more bytes
+available to be read from the underlying I/O.</p>
+<p>This method defaults to calling <code>decode</code> and returns an error if
+<code>Ok(None)</code> is returned while there is unconsumed data in <code>buf</code>.
+Typically this doesn't need to be implemented unless the framing
+protocol differs near the end of the stream.</p>
+<p>Note that the <code>buf</code> argument may be empty. If a previous call to
+<code>decode_eof</code> consumed all the bytes in the buffer, <code>decode_eof</code> will be
+called again until it returns <code>None</code>, indicating that there are no more
+frames to yield. This behavior enables returning finalization frames
+that may not be based on inbound data.</p>
+</div><h3 id='method.framed' class='method'><span id='framed.v' class='invisible'><code>fn <a href='#method.framed' class='fnname'>framed</a>&lt;T&gt;(self, io: T) -&gt; <a class="struct" href="../tokio_codec/struct.Framed.html" title="struct tokio_codec::Framed">Framed</a>&lt;T, Self&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;Self: <a class="trait" href="../tokio_codec/trait.Encoder.html" title="trait tokio_codec::Encoder">Encoder</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="../tokio_io/async_read/trait.AsyncRead.html" title="trait tokio_io::async_read::AsyncRead">AsyncRead</a> + <a class="trait" href="../tokio_io/async_write/trait.AsyncWrite.html" title="trait tokio_io::async_write::AsyncWrite">AsyncWrite</a>,&nbsp;</span></code></span></h3><div class='docblock'><p>Provides a <code>Stream</code> and <code>Sink</code> interface for reading and writing to this
+<code>Io</code> object, using <code>Decode</code> and <code>Encode</code> to read and write the raw data.</p>
+<p>Raw I/O objects work with byte sequences, but higher-level code usually
+wants to batch these into meaningful chunks, called &quot;frames&quot;. This
+method layers framing on top of an I/O object, by using the <code>Codec</code>
+traits to handle encoding and decoding of messages frames. Note that
+the incoming and outgoing frame types may be distinct.</p>
+<p>This function returns a <em>single</em> object that is both <code>Stream</code> and
+<code>Sink</code>; grouping this into a single object is often useful for layering
+things like gzip or TLS, which require both read and write access to the
+underlying object.</p>
+<p>If you want to work more directly with the streams and sink, consider
+calling <code>split</code> on the <code>Framed</code> returned by this method, which will
+break them into separate objects, allowing them to interact more easily.</p>
+</div></div>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><div class='out-of-band'><a class='srclink' href='../src/tokio_codec/bytes_codec.rs.html#14-26' title='goto source code'>[src]</a></div><code>impl Decoder for <a class="struct" href="../tokio_codec/struct.BytesCodec.html" title="struct tokio_codec::BytesCodec">BytesCodec</a><span class="where fmt-newline">  type <a href='#associatedtype.Item' class="type">Item</a> = <a class="struct" href="../bytes/bytes/struct.BytesMut.html" title="struct bytes::bytes::BytesMut">BytesMut</a>;</span><span class="where fmt-newline">  type <a href='#associatedtype.Error' class="type">Error</a> = <a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">Error</a>;</span></code></li>
+<li><div class='out-of-band'><a class='srclink' href='../src/tokio_codec/lines_codec.rs.html#39-77' title='goto source code'>[src]</a></div><code>impl Decoder for <a class="struct" href="../tokio_codec/struct.LinesCodec.html" title="struct tokio_codec::LinesCodec">LinesCodec</a><span class="where fmt-newline">  type <a href='#associatedtype.Item' class="type">Item</a> = <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>;</span><span class="where fmt-newline">  type <a href='#associatedtype.Error' class="type">Error</a> = <a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">Error</a>;</span></code></li>
+</ul><script type="text/javascript" async
+                         src="../implementors/tokio_io/codec/decoder/trait.Decoder.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "tokio_codec";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

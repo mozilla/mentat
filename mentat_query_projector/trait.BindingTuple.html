@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `BindingTuple` trait in crate `mentat_query_projector`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, BindingTuple">
+
+    <title>mentat_query_projector::BindingTuple - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait BindingTuple</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.from_binding_vec">from_binding_vec</a></div><a class="sidebar-title" href="#foreign-impls">Implementations on Foreign Types</a><div class="sidebar-links"><a href="#impl-BindingTuple">Vec&lt;Binding&gt;</a><a href="#impl-BindingTuple">(Binding,)</a><a href="#impl-BindingTuple">(Binding, Binding)</a><a href="#impl-BindingTuple">(Binding, Binding, Binding)</a><a href="#impl-BindingTuple">(Binding, Binding, Binding, Binding)</a><a href="#impl-BindingTuple">(Binding, Binding, Binding, Binding, Binding)</a><a href="#impl-BindingTuple">(Binding, Binding, Binding, Binding, Binding, Binding)</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='index.html'>mentat_query_projector</a></p><script>window.sidebarCurrent = {name: 'BindingTuple', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>mentat_query_projector</a>::<wbr><a class="trait" href=''>BindingTuple</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#24-26' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait BindingTuple: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> {
+    fn <a href='#tymethod.from_binding_vec' class='fnname'>from_binding_vec</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;expected: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vec: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;&gt;<br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="type" href="../query_projector_traits/errors/type.Result.html" title="type query_projector_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;&gt;;
+}</pre><div class='docblock'><p>A <code>BindingTuple</code> is any type that can accommodate a Mentat tuple query result of fixed length.</p>
+<p>Currently Rust tuples of length 1 through 6 (i.e., <code>(A)</code> through <code>(A, B, C, D, E, F)</code>) are
+supported as are vectors (i.e., <code>Vec&lt;&gt;</code>).</p>
+</div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.from_binding_vec' class='method'><span id='from_binding_vec.v' class='invisible'><code>fn <a href='#tymethod.from_binding_vec' class='fnname'>from_binding_vec</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;expected: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;vec: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;&gt;<br>) -&gt; <a class="type" href="../query_projector_traits/errors/type.Result.html" title="type query_projector_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;&gt;</code></span></h3></div>
+                <h2 id='foreign-impls' class='small-section-header'>
+                  Implementations on Foreign Types<a href='#foreign-impls' class='anchor'></a>
+                </h2>
+            <h3 id='impl-BindingTuple' class='impl'><span class='in-band'><code>impl <a class="trait" href="../mentat_query_projector/trait.BindingTuple.html" title="trait mentat_query_projector::BindingTuple">BindingTuple</a> for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;</code><a href='#impl-BindingTuple' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#29-42' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.from_binding_vec' class="method"><span id='from_binding_vec.v-1' class='invisible'><code>fn <a href='#method.from_binding_vec' class='fnname'>from_binding_vec</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;expected: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;vec: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;&gt;<br>) -&gt; <a class="type" href="../query_projector_traits/errors/type.Result.html" title="type query_projector_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#30-41' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-BindingTuple-1' class='impl'><span class='in-band'><code>impl <a class="trait" href="../mentat_query_projector/trait.BindingTuple.html" title="trait mentat_query_projector::BindingTuple">BindingTuple</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">,)</a></code><a href='#impl-BindingTuple-1' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#45-62' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.from_binding_vec-1' class="method"><span id='from_binding_vec.v-2' class='invisible'><code>fn <a href='#method.from_binding_vec' class='fnname'>from_binding_vec</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;expected: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;vec: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;&gt;<br>) -&gt; <a class="type" href="../query_projector_traits/errors/type.Result.html" title="type query_projector_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#46-61' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-BindingTuple-2' class='impl'><span class='in-band'><code>impl <a class="trait" href="../mentat_query_projector/trait.BindingTuple.html" title="trait mentat_query_projector::BindingTuple">BindingTuple</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code><a href='#impl-BindingTuple-2' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#64-81' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.from_binding_vec-2' class="method"><span id='from_binding_vec.v-3' class='invisible'><code>fn <a href='#method.from_binding_vec' class='fnname'>from_binding_vec</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;expected: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;vec: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;&gt;<br>) -&gt; <a class="type" href="../query_projector_traits/errors/type.Result.html" title="type query_projector_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#65-80' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-BindingTuple-3' class='impl'><span class='in-band'><code>impl <a class="trait" href="../mentat_query_projector/trait.BindingTuple.html" title="trait mentat_query_projector::BindingTuple">BindingTuple</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code><a href='#impl-BindingTuple-3' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#83-100' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.from_binding_vec-3' class="method"><span id='from_binding_vec.v-4' class='invisible'><code>fn <a href='#method.from_binding_vec' class='fnname'>from_binding_vec</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;expected: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;vec: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;&gt;<br>) -&gt; <a class="type" href="../query_projector_traits/errors/type.Result.html" title="type query_projector_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#84-99' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-BindingTuple-4' class='impl'><span class='in-band'><code>impl <a class="trait" href="../mentat_query_projector/trait.BindingTuple.html" title="trait mentat_query_projector::BindingTuple">BindingTuple</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code><a href='#impl-BindingTuple-4' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#102-119' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.from_binding_vec-4' class="method"><span id='from_binding_vec.v-5' class='invisible'><code>fn <a href='#method.from_binding_vec' class='fnname'>from_binding_vec</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;expected: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;vec: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;&gt;<br>) -&gt; <a class="type" href="../query_projector_traits/errors/type.Result.html" title="type query_projector_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#103-118' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-BindingTuple-5' class='impl'><span class='in-band'><code>impl <a class="trait" href="../mentat_query_projector/trait.BindingTuple.html" title="trait mentat_query_projector::BindingTuple">BindingTuple</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code><a href='#impl-BindingTuple-5' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#121-138' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.from_binding_vec-5' class="method"><span id='from_binding_vec.v-6' class='invisible'><code>fn <a href='#method.from_binding_vec' class='fnname'>from_binding_vec</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;expected: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;vec: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;&gt;<br>) -&gt; <a class="type" href="../query_projector_traits/errors/type.Result.html" title="type query_projector_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#122-137' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-BindingTuple-6' class='impl'><span class='in-band'><code>impl <a class="trait" href="../mentat_query_projector/trait.BindingTuple.html" title="trait mentat_query_projector::BindingTuple">BindingTuple</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>, <a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code><a href='#impl-BindingTuple-6' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#142-159' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.from_binding_vec-6' class="method"><span id='from_binding_vec.v-7' class='invisible'><code>fn <a href='#method.from_binding_vec' class='fnname'>from_binding_vec</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;expected: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;vec: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../core_traits/enum.Binding.html" title="enum core_traits::Binding">Binding</a>&gt;&gt;<br>) -&gt; <a class="type" href="../query_projector_traits/errors/type.Result.html" title="type query_projector_traits::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Self&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/mentat_query_projector/binding_tuple.rs.html#143-158' title='goto source code'>[src]</a></span></h4>
+</div></span>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    </ul><script type="text/javascript" async
+                         src="../implementors/mentat_query_projector/trait.BindingTuple.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "mentat_query_projector";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

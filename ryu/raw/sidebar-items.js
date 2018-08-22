@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["d2s_buffered_n","Print f64 to the given buffer and return number of bytes written."],["f2s_buffered_n","Print f32 to the given buffer and return number of bytes written."]]});

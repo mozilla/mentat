@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="Source to the Rust file `/Users/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/serde_cbor-0.8.2/src/lib.rs`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang">
+
+    <title>lib.rs.html -- source</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc source">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+</pre><pre class="rust ">
+<span class="doccomment">//! CBOR and serialization.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # What is CBOR?</span>
+<span class="doccomment">//! [CBOR](http://cbor.io) is a way to encode data in a space-efficient and fast binary format.</span>
+<span class="doccomment">//! CBORs data-model is a superset of the JSONs.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! A simple object describing a person in diagnostic notation (it is actually JSON plus some</span>
+<span class="doccomment">//! annotations) looks like</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```json</span>
+<span class="doccomment">//! {</span>
+<span class="doccomment">//!     &quot;FirstName&quot;: &quot;John&quot;,</span>
+<span class="doccomment">//!     &quot;LastName&quot;: &quot;Doe&quot;,</span>
+<span class="doccomment">//!     &quot;Age&quot;: 43,</span>
+<span class="doccomment">//!     &quot;Address&quot;: {</span>
+<span class="doccomment">//!         &quot;Street&quot;: &quot;Downing Street 10&quot;,</span>
+<span class="doccomment">//!         &quot;City&quot;: &quot;London&quot;,</span>
+<span class="doccomment">//!         &quot;Country&quot;: &quot;Great Britain&quot;</span>
+<span class="doccomment">//!     },</span>
+<span class="doccomment">//!     &quot;PhoneNumbers&quot;: [</span>
+<span class="doccomment">//!         &quot;+44 1234567&quot;,</span>
+<span class="doccomment">//!         &quot;+44 2345678&quot;</span>
+<span class="doccomment">//!     ]</span>
+<span class="doccomment">//! }</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The CBOR encoded object with comments in hexadecimal notation looks like</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```cbor</span>
+<span class="doccomment">//! a5                                      # map(5)</span>
+<span class="doccomment">//!    69                                   # text(9)</span>
+<span class="doccomment">//!       46697273744e616d65                # &quot;FirstName&quot;</span>
+<span class="doccomment">//!    64                                   # text(4)</span>
+<span class="doccomment">//!       4a6f686e                          # &quot;John&quot;</span>
+<span class="doccomment">//!    68                                   # text(8)</span>
+<span class="doccomment">//!       4c6173744e616d65                  # &quot;LastName&quot;</span>
+<span class="doccomment">//!    63                                   # text(3)</span>
+<span class="doccomment">//!       446f65                            # &quot;Doe&quot;</span>
+<span class="doccomment">//!    63                                   # text(3)</span>
+<span class="doccomment">//!       416765                            # &quot;Age&quot;</span>
+<span class="doccomment">//!    18 2b                                # unsigned(43)</span>
+<span class="doccomment">//!    67                                   # text(7)</span>
+<span class="doccomment">//!       41646472657373                    # &quot;Address&quot;</span>
+<span class="doccomment">//!    a3                                   # map(3)</span>
+<span class="doccomment">//!       66                                # text(6)</span>
+<span class="doccomment">//!          537472656574                   # &quot;Street&quot;</span>
+<span class="doccomment">//!       71                                # text(17)</span>
+<span class="doccomment">//!          446f776e696e6720537472656574203130 # &quot;Downing Street 10&quot;</span>
+<span class="doccomment">//!       64                                # text(4)</span>
+<span class="doccomment">//!          43697479                       # &quot;City&quot;</span>
+<span class="doccomment">//!       66                                # text(6)</span>
+<span class="doccomment">//!          4c6f6e646f6e                   # &quot;London&quot;</span>
+<span class="doccomment">//!       67                                # text(7)</span>
+<span class="doccomment">//!          436f756e747279                 # &quot;Country&quot;</span>
+<span class="doccomment">//!       6d                                # text(13)</span>
+<span class="doccomment">//!          4772656174204272697461696e     # &quot;Great Britain&quot;</span>
+<span class="doccomment">//!    6c                                   # text(12)</span>
+<span class="doccomment">//!       50686f6e654e756d62657273          # &quot;PhoneNumbers&quot;</span>
+<span class="doccomment">//!    82                                   # array(2)</span>
+<span class="doccomment">//!       6b                                # text(11)</span>
+<span class="doccomment">//!          2b34342031323334353637         # &quot;+44 1234567&quot;</span>
+<span class="doccomment">//!       6b                                # text(11)</span>
+<span class="doccomment">//!          2b34342032333435363738         # &quot;+44 2345678&quot;</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//! While the JSON encoding is 174 bytes long the CBOR representation is only 141 bytes long.</span>
+<span class="doccomment">//! This is 19% shorter! Sometimes compression will even better, but never CBOR will be longer</span>
+<span class="doccomment">//! than the corresponding JSON. More importantly CBOR supports binary data, custom data tyes,</span>
+<span class="doccomment">//! annotations for dates, times and expected encoding and is faster to serialize and deserialize.</span>
+<span class="doccomment">//! It can even be used on embedded devices.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Type-based Serialization and Deserialization</span>
+<span class="doccomment">//! Serde provides a mechanism for low boilerplate serialization &amp; deserialization of values to and</span>
+<span class="doccomment">//! from CBOR via the serialization API. To be able to serialize a piece of data, it must implement</span>
+<span class="doccomment">//! the `serde::Serialize` trait. To be able to deserialize a piece of data, it must implement the</span>
+<span class="doccomment">//! `serde::Deserialize` trait. Serde provides an annotation to automatically generate the</span>
+<span class="doccomment">//! code for these traits: `#[derive(Serialize, Deserialize)]`.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The CBOR API also provides an enum `serde_cbor::Value`.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Packed Encoding</span>
+<span class="doccomment">//! When serializing structs or enums in CBOR the keys or enum variant names will be serialized</span>
+<span class="doccomment">//! as string keys to a map. Esspecially in embedded environments this can increase the file</span>
+<span class="doccomment">//! size too much. In packed encoding the keys and variants will be serialized as variable sized</span>
+<span class="doccomment">//! integers. The first 24 entries in any struct consume only a single byte!</span>
+<span class="doccomment">//! To serialize a document in packed encoding use `ser::to_(vec|writer)_packed`, deserialization</span>
+<span class="doccomment">//! works without any changes.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Self describing documents</span>
+<span class="doccomment">//! In some contexts different formats are used but there is no way to declare the format used</span>
+<span class="doccomment">//! out of band. For this reason CBOR has a magic number that may be added before any document.</span>
+<span class="doccomment">//! The *`_sd` (for *s*elf*d*escribe) append the magic number before documents.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Examples</span>
+<span class="doccomment">//! Read a CBOR value that is known to be a map of string keys to string values and print it.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```rust</span>
+<span class="doccomment">//! use std::collections::BTreeMap;</span>
+<span class="doccomment">//! use serde_cbor::from_slice;</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! let slice = b&quot;\xa5aaaAabaBacaCadaDaeaE&quot;;</span>
+<span class="doccomment">//! let value: BTreeMap&lt;String, String&gt; = from_slice(slice).unwrap();</span>
+<span class="doccomment">//! println!(&quot;{:?}&quot;, value); // {&quot;e&quot;: &quot;E&quot;, &quot;d&quot;: &quot;D&quot;, &quot;a&quot;: &quot;A&quot;, &quot;c&quot;: &quot;C&quot;, &quot;b&quot;: &quot;B&quot;}</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Read a general CBOR value with an unknown content.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```rust</span>
+<span class="doccomment">//! use serde_cbor::{from_slice, Value};</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! let slice = b&quot;\x82\x01\xa1aaab&quot;;</span>
+<span class="doccomment">//! let value: Value = from_slice(slice).unwrap();</span>
+<span class="doccomment">//! println!(&quot;{:?}&quot;, value); // Array([U64(1), Object({String(&quot;a&quot;): String(&quot;b&quot;)})])</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Serialize an object.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```rust</span>
+<span class="doccomment">//! use std::collections::BTreeMap;</span>
+<span class="doccomment">//! use serde_cbor::to_vec;</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! let mut programming_languages = BTreeMap::new();</span>
+<span class="doccomment">//! programming_languages.insert(&quot;rust&quot;, vec![&quot;safe&quot;, &quot;concurrent&quot;, &quot;fast&quot;]);</span>
+<span class="doccomment">//! programming_languages.insert(&quot;python&quot;, vec![&quot;powerful&quot;, &quot;friendly&quot;, &quot;open&quot;]);</span>
+<span class="doccomment">//! programming_languages.insert(&quot;js&quot;, vec![&quot;lightweight&quot;, &quot;interpreted&quot;, &quot;object-oriented&quot;]);</span>
+<span class="doccomment">//! let encoded = to_vec(&amp;programming_languages);</span>
+<span class="doccomment">//! assert_eq!(encoded.unwrap().len(), 103);</span>
+<span class="doccomment">//! ```</span>
+
+<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">missing_docs</span>)]</span>
+
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">byteorder</span>;
+
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">serde</span>;
+
+<span class="kw">mod</span> <span class="ident">read</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">de</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">error</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">ser</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">value</span>;
+
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">inline</span>)]</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">de</span>::{<span class="ident">from_slice</span>, <span class="ident">from_reader</span>, <span class="ident">Deserializer</span>};
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">inline</span>)]</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">ser</span>::{<span class="ident">to_writer</span>, <span class="ident">to_vec</span>, <span class="ident">Serializer</span>};
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">inline</span>)]</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">value</span>::{<span class="ident">Value</span>, <span class="ident">ObjectKey</span>, <span class="ident">to_value</span>};
+</pre>
+</section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "serde_cbor";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

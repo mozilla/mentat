@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Value` enum in crate `rusqlite`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Value">
+
+    <title>rusqlite::types::Value - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc enum">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Enum Value</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.Null">Null</a><a href="#variant.Integer">Integer</a><a href="#variant.Real">Real</a><a href="#variant.Text">Text</a><a href="#variant.Blob">Blob</a></div><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.data_type">data_type</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Clone">Clone</a><a href="#impl-Debug">Debug</a><a href="#impl-PartialEq">PartialEq</a><a href="#impl-From%3CNull%3E">From&lt;Null&gt;</a><a href="#impl-From%3Cbool%3E">From&lt;bool&gt;</a><a href="#impl-From%3Ci8%3E">From&lt;i8&gt;</a><a href="#impl-From%3Ci16%3E">From&lt;i16&gt;</a><a href="#impl-From%3Ci32%3E">From&lt;i32&gt;</a><a href="#impl-From%3Cisize%3E">From&lt;isize&gt;</a><a href="#impl-From%3Cu8%3E">From&lt;u8&gt;</a><a href="#impl-From%3Cu16%3E">From&lt;u16&gt;</a><a href="#impl-From%3Cu32%3E">From&lt;u32&gt;</a><a href="#impl-From%3Ci64%3E">From&lt;i64&gt;</a><a href="#impl-From%3Cf64%3E">From&lt;f64&gt;</a><a href="#impl-From%3CString%3E">From&lt;String&gt;</a><a href="#impl-From%3CVec%3Cu8%3E%3E">From&lt;Vec&lt;u8&gt;&gt;</a><a href="#impl-From%3CValueRef%3C%27a%3E%3E">From&lt;ValueRef&lt;&#39;a&gt;&gt;</a><a href="#impl-From%3C%26%27a%20Value%3E">From&lt;&amp;&#39;a Value&gt;</a><a href="#impl-FromSql">FromSql</a><a href="#impl-ToSql">ToSql</a></div></div><p class='location'><a href='../index.html'>rusqlite</a>::<wbr><a href='index.html'>types</a></p><script>window.sidebarCurrent = {name: 'Value', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Enum <a href='../index.html'>rusqlite</a>::<wbr><a href='index.html'>types</a>::<wbr><a class="enum" href=''>Value</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/rusqlite/types/value.rs.html#8-19' title='goto source code'>[src]</a></span></h1>
+<pre class='rust enum'>pub enum Value {
+    Null,
+    Integer(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>),
+    Real(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.f64.html">f64</a>),
+    Text(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    Blob(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;),
+}</pre><div class='docblock'><p>Owning <a href="http://sqlite.org/datatype3.html">dynamic type value</a>. Value's type is typically
+dictated by SQLite (not by the caller).</p>
+<p>See <a href="enum.ValueRef.html"><code>ValueRef</code></a> for a non-owning dynamic type value.</p>
+</div><h2 id='variants' class='variants small-section-header'>
+                   Variants<a href='#variants' class='anchor'></a></h2>
+<span id="variant.Null" class="variant small-section-header"><a href="#variant.Null" class="anchor field"></a><span id='Null.v' class='invisible'><code>Null</code></span></span><div class='docblock'><p>The value is a <code>NULL</code> value.</p>
+</div><span id="variant.Integer" class="variant small-section-header"><a href="#variant.Integer" class="anchor field"></a><span id='Integer.v' class='invisible'><code>Integer(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>)</code></span></span><div class='docblock'><p>The value is a signed integer.</p>
+</div><span id="variant.Real" class="variant small-section-header"><a href="#variant.Real" class="anchor field"></a><span id='Real.v' class='invisible'><code>Real(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.f64.html">f64</a>)</code></span></span><div class='docblock'><p>The value is a floating point number.</p>
+</div><span id="variant.Text" class="variant small-section-header"><a href="#variant.Text" class="anchor field"></a><span id='Text.v' class='invisible'><code>Text(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><div class='docblock'><p>The value is a text string.</p>
+</div><span id="variant.Blob" class="variant small-section-header"><a href="#variant.Blob" class="anchor field"></a><span id='Blob.v' class='invisible'><code>Blob(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;)</code></span></span><div class='docblock'><p>The value is a blob of data</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#75-85' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.data_type' class="method"><span id='data_type.v' class='invisible'><code>pub fn <a href='#method.data_type' class='fnname'>data_type</a>(&amp;self) -&gt; <a class="enum" href="../../rusqlite/types/enum.Type.html" title="enum rusqlite::types::Type">Type</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#76-84' title='goto source code'>[src]</a></span></h4>
+</div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Clone' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-Clone' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#7' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#7' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#112-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#7' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#7' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-PartialEq' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html" title="trait core::cmp::PartialEq">PartialEq</a> for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-PartialEq' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#7' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.eq' class="method"><span id='eq.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq' class='fnname'>eq</a>(&amp;self, __arg_0: &amp;<a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#7' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq">Read more</a></p>
+</div><h4 id='method.ne' class="method"><span id='ne.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne' class='fnname'>ne</a>(&amp;self, __arg_0: &amp;<a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#7' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>!=</code>.</p>
+</div></div><h3 id='impl-From%3CNull%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="../../rusqlite/types/struct.Null.html" title="struct rusqlite::types::Null">Null</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3CNull%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#21-25' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from' class="method"><span id='from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(_: <a class="struct" href="../../rusqlite/types/struct.Null.html" title="struct rusqlite::types::Null">Null</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#22-24' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Cbool%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Cbool%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#27-31' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-1' class="method"><span id='from.v-1' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(i: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#28-30' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Ci8%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i8.html">i8</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Ci8%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#35-39' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-2' class="method"><span id='from.v-2' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(i: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i8.html">i8</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#36-38' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Ci16%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i16.html">i16</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Ci16%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#35-39' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-3' class="method"><span id='from.v-3' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(i: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i16.html">i16</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#36-38' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Ci32%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Ci32%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#35-39' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-4' class="method"><span id='from.v-4' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(i: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#36-38' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Cisize%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.isize.html">isize</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Cisize%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#35-39' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-5' class="method"><span id='from.v-5' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(i: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.isize.html">isize</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#36-38' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Cu8%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Cu8%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#35-39' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-6' class="method"><span id='from.v-6' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(i: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#36-38' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Cu16%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u16.html">u16</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Cu16%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#35-39' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-7' class="method"><span id='from.v-7' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(i: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u16.html">u16</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#36-38' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Cu32%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Cu32%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#35-39' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-8' class="method"><span id='from.v-8' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(i: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#36-38' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Ci64%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Ci64%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#51-55' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-9' class="method"><span id='from.v-9' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(i: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#52-54' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3Cf64%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.f64.html">f64</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3Cf64%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#57-61' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-10' class="method"><span id='from.v-10' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(f: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.f64.html">f64</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#58-60' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CString%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3CString%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#63-67' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-11' class="method"><span id='from.v-11' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(s: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#64-66' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CVec%3Cu8%3E%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3CVec%3Cu8%3E%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#69-73' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-12' class="method"><span id='from.v-12' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(v: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value.rs.html#70-72' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CValueRef%3C%27a%3E%3E' class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>&lt;'a&gt;&gt; for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-From%3CValueRef%3C%27a%3E%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value_ref.rs.html#72-82' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-13' class="method"><span id='from.v-13' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(borrowed: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value_ref.rs.html#73-81' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3C%26%27a%20Value%3E' class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;&amp;'a <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a>&gt; for <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>&lt;'a&gt;</code><a href='#impl-From%3C%26%27a%20Value%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value_ref.rs.html#96-106' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-14' class="method"><span id='from.v-14' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(value: &amp;'a <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a>) -&gt; <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/value_ref.rs.html#97-105' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-FromSql' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-FromSql' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#134-138' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.column_result' class="method"><span id='column_result.v' class='invisible'><code>fn <a href='../../rusqlite/types/trait.FromSql.html#tymethod.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#135-137' title='goto source code'>[src]</a></span></h4>
+</div><h3 id='impl-ToSql' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a> for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code><a href='#impl-ToSql' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/to_sql.rs.html#115-119' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.to_sql' class="method"><span id='to_sql.v' class='invisible'><code>fn <a href='../../rusqlite/types/trait.ToSql.html#tymethod.to_sql' class='fnname'>to_sql</a>(&amp;self) -&gt; <a class="type" href="../../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="enum" href="../../rusqlite/types/enum.ToSqlOutput.html" title="enum rusqlite::types::ToSqlOutput">ToSqlOutput</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/to_sql.rs.html#116-118' title='goto source code'>[src]</a></span></h4>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "rusqlite";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `buf` mod in crate `bytes`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, buf">
+
+    <title>bytes::buf - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module buf</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#traits">Traits</a></li></ul></div><p class='location'><a href='../index.html'>bytes</a></p><script>window.sidebarCurrent = {name: 'buf', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>bytes</a>::<wbr><a class="mod" href=''>buf</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/bytes/buf/mod.rs.html#1-37' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>Utilities for working with buffers.</p>
+<p>A buffer is any structure that contains a sequence of bytes. The bytes may
+or may not be stored in contiguous memory. This module contains traits used
+to abstract over buffers as well as utilities for working with buffer types.</p>
+<h1 id="buf-bufmut" class="section-header"><a href="#buf-bufmut"><code>Buf</code>, <code>BufMut</code></a></h1>
+<p>These are the two foundational traits for abstractly working with buffers.
+They can be thought as iterators for byte structures. They offer additional
+performance over <code>Iterator</code> by providing an API optimized for byte slices.</p>
+<p>See <a href="trait.Buf.html"><code>Buf</code></a> and <a href="trait.BufMut.html"><code>BufMut</code></a> for more details.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Chain.html"
+                                  title='struct bytes::buf::Chain'>Chain</a></td>
+                           <td class='docblock-short'>
+                                <p>A <code>Chain</code> sequences two buffers.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Iter.html"
+                                  title='struct bytes::buf::Iter'>Iter</a></td>
+                           <td class='docblock-short'>
+                                <p>Iterator over the bytes contained by the buffer.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Reader.html"
+                                  title='struct bytes::buf::Reader'>Reader</a></td>
+                           <td class='docblock-short'>
+                                <p>A <code>Buf</code> adapter which implements <code>io::Read</code> for the inner value.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Take.html"
+                                  title='struct bytes::buf::Take'>Take</a></td>
+                           <td class='docblock-short'>
+                                <p>A <code>Buf</code> adapter which limits the bytes read from an underlying buffer.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Writer.html"
+                                  title='struct bytes::buf::Writer'>Writer</a></td>
+                           <td class='docblock-short'>
+                                <p>A <code>BufMut</code> adapter which implements <code>io::Write</code> for the inner value.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Buf.html"
+                                  title='trait bytes::buf::Buf'>Buf</a></td>
+                           <td class='docblock-short'>
+                                <p>Read bytes from a buffer.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.BufMut.html"
+                                  title='trait bytes::buf::BufMut'>BufMut</a></td>
+                           <td class='docblock-short'>
+                                <p>A trait for values that provide sequential write access to bytes.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.FromBuf.html"
+                                  title='trait bytes::buf::FromBuf'>FromBuf</a></td>
+                           <td class='docblock-short'>
+                                <p>Conversion from a <a href="trait.Buf.html"><code>Buf</code></a></p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.IntoBuf.html"
+                                  title='trait bytes::buf::IntoBuf'>IntoBuf</a></td>
+                           <td class='docblock-short'>
+                                <p>Conversion into a <code>Buf</code></p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "bytes";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Stealer` struct in crate `crossbeam_deque`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Stealer">
+
+    <title>crossbeam_deque::Stealer - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Stealer</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.is_empty">is_empty</a><a href="#method.len">len</a><a href="#method.steal">steal</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Send">Send</a><a href="#impl-Sync">Sync</a><a href="#impl-Clone">Clone</a><a href="#impl-Debug">Debug</a></div></div><p class='location'><a href='index.html'>crossbeam_deque</a></p><script>window.sidebarCurrent = {name: 'Stealer', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>crossbeam_deque</a>::<wbr><a class="struct" href=''>Stealer</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#719-722' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Stealer&lt;T&gt; { /* fields omitted */ }</pre><div class='docblock'><p>A stealer that steals elements from the top of a deque.</p>
+<p>The only operation a stealer can do that manipulates the deque is <a href="struct.Stealer.html#method.steal"><code>steal</code></a>.</p>
+<p>Stealers can be cloned in order to create more of them. They also implement <code>Send</code> and <code>Sync</code>
+so they can be easily shared among multiple threads.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;T&gt; <a class="struct" href="../crossbeam_deque/struct.Stealer.html" title="struct crossbeam_deque::Stealer">Stealer</a>&lt;T&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#727-837' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.is_empty' class="method"><span id='is_empty.v' class='invisible'><code>pub fn <a href='#method.is_empty' class='fnname'>is_empty</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#743-745' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns <code>true</code> if the deque is empty.</p>
+<h1 id="examples" class="section-header"><a href="#examples">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_deque</span>::<span class="ident">Deque</span>;
+
+<span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">Deque</span>::<span class="ident">new</span>();
+<span class="ident">d</span>.<span class="ident">push</span>(<span class="string">&quot;foo&quot;</span>);
+
+<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">d</span>.<span class="ident">stealer</span>();
+<span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">d</span>.<span class="ident">is_empty</span>());
+<span class="ident">s</span>.<span class="ident">steal</span>();
+<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">d</span>.<span class="ident">is_empty</span>());</pre>
+</div><h4 id='method.len' class="method"><span id='len.v' class='invisible'><code>pub fn <a href='#method.len' class='fnname'>len</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#761-766' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the number of elements in the deque.</p>
+<h1 id="examples-1" class="section-header"><a href="#examples-1">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_deque</span>::<span class="ident">Deque</span>;
+
+<span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">Deque</span>::<span class="ident">new</span>();
+<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">d</span>.<span class="ident">stealer</span>();
+<span class="ident">d</span>.<span class="ident">push</span>(<span class="string">&#39;a&#39;</span>);
+<span class="ident">d</span>.<span class="ident">push</span>(<span class="string">&#39;b&#39;</span>);
+<span class="ident">d</span>.<span class="ident">push</span>(<span class="string">&#39;c&#39;</span>);
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">s</span>.<span class="ident">len</span>(), <span class="number">3</span>);</pre>
+</div><h4 id='method.steal' class="method"><span id='steal.v' class='invisible'><code>pub fn <a href='#method.steal' class='fnname'>steal</a>(&amp;self) -&gt; <a class="enum" href="../crossbeam_deque/enum.Steal.html" title="enum crossbeam_deque::Steal">Steal</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#798-836' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Steals an element from the top of the deque.</p>
+<p>Unlike most methods in concurrent data structures, if another operation gets in the way
+while attempting to steal data, this method will return immediately with <a href="enum.Steal.html#variant.Retry"><code>Steal::Retry</code></a>
+instead of retrying.</p>
+<p>This method will not attempt to resize the internal buffer.</p>
+<h1 id="examples-2" class="section-header"><a href="#examples-2">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_deque</span>::{<span class="ident">Deque</span>, <span class="ident">Steal</span>};
+
+<span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">Deque</span>::<span class="ident">new</span>();
+<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">d</span>.<span class="ident">stealer</span>();
+<span class="ident">d</span>.<span class="ident">push</span>(<span class="number">1</span>);
+<span class="ident">d</span>.<span class="ident">push</span>(<span class="number">2</span>);
+
+<span class="comment">// Attempt to steal an element, but keep retrying if we get `Retry`.</span>
+<span class="kw">let</span> <span class="ident">stolen</span> <span class="op">=</span> <span class="kw">loop</span> {
+    <span class="kw">match</span> <span class="ident">s</span>.<span class="ident">steal</span>() {
+        <span class="ident">Steal</span>::<span class="ident">Empty</span> <span class="op">=&gt;</span> <span class="kw">break</span> <span class="prelude-val">None</span>,
+        <span class="ident">Steal</span>::<span class="ident">Data</span>(<span class="ident">data</span>) <span class="op">=&gt;</span> <span class="kw">break</span> <span class="prelude-val">Some</span>(<span class="ident">data</span>),
+        <span class="ident">Steal</span>::<span class="ident">Retry</span> <span class="op">=&gt;</span> {}
+    }
+};
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">stolen</span>, <span class="prelude-val">Some</span>(<span class="number">1</span>));</pre>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Send' class='impl'><span class='in-band'><code>impl&lt;T:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="struct" href="../crossbeam_deque/struct.Stealer.html" title="struct crossbeam_deque::Stealer">Stealer</a>&lt;T&gt;</code><a href='#impl-Send' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#724' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div><h3 id='impl-Sync' class='impl'><span class='in-band'><code>impl&lt;T:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="struct" href="../crossbeam_deque/struct.Stealer.html" title="struct crossbeam_deque::Stealer">Stealer</a>&lt;T&gt;</code><a href='#impl-Sync' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#725' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div><h3 id='impl-Clone' class='impl'><span class='in-band'><code>impl&lt;T&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="struct" href="../crossbeam_deque/struct.Stealer.html" title="struct crossbeam_deque::Stealer">Stealer</a>&lt;T&gt;</code><a href='#impl-Clone' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#839-847' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class="struct" href="../crossbeam_deque/struct.Stealer.html" title="struct crossbeam_deque::Stealer">Stealer</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#841-846' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Creates another stealer.</p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#112-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl&lt;T&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../crossbeam_deque/struct.Stealer.html" title="struct crossbeam_deque::Stealer">Stealer</a>&lt;T&gt;</code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#849-853' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_deque/lib.rs.html#850-852' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "crossbeam_deque";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

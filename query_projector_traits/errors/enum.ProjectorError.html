@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `ProjectorError` enum in crate `query_projector_traits`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, ProjectorError">
+
+    <title>query_projector_traits::errors::ProjectorError - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc enum">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Enum ProjectorError</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.NotYetImplemented">NotYetImplemented</a><a href="#variant.CannotProjectImpossibleBinding">CannotProjectImpossibleBinding</a><a href="#variant.CannotApplyAggregateOperationToTypes">CannotApplyAggregateOperationToTypes</a><a href="#variant.InvalidProjection">InvalidProjection</a><a href="#variant.UnboundVariable">UnboundVariable</a><a href="#variant.NoTypeAvailableForVariable">NoTypeAvailableForVariable</a><a href="#variant.UnexpectedResultsType">UnexpectedResultsType</a><a href="#variant.UnexpectedResultsTupleLength">UnexpectedResultsTupleLength</a><a href="#variant.AmbiguousAggregates">AmbiguousAggregates</a><a href="#variant.RusqliteError">RusqliteError</a><a href="#variant.DbError">DbError</a><a href="#variant.PullError">PullError</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a><a href="#impl-From%3CError%3E">From&lt;Error&gt;</a><a href="#impl-From%3CDbError%3E">From&lt;DbError&gt;</a><a href="#impl-From%3CPullError%3E">From&lt;PullError&gt;</a></div></div><p class='location'><a href='../index.html'>query_projector_traits</a>::<wbr><a href='index.html'>errors</a></p><script>window.sidebarCurrent = {name: 'ProjectorError', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Enum <a href='../index.html'>query_projector_traits</a>::<wbr><a href='index.html'>errors</a>::<wbr><a class="enum" href=''>ProjectorError</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/query_projector_traits/errors.rs.html#33-73' title='goto source code'>[src]</a></span></h1>
+<pre class='rust enum'>pub enum ProjectorError {
+    NotYetImplemented(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    CannotProjectImpossibleBinding(<a class="enum" href="../../query_projector_traits/aggregates/enum.SimpleAggregationOp.html" title="enum query_projector_traits::aggregates::SimpleAggregationOp">SimpleAggregationOp</a>),
+    CannotApplyAggregateOperationToTypes(<a class="enum" href="../../query_projector_traits/aggregates/enum.SimpleAggregationOp.html" title="enum query_projector_traits::aggregates::SimpleAggregationOp">SimpleAggregationOp</a>,&nbsp;<a class="struct" href="../../core_traits/value_type_set/struct.ValueTypeSet.html" title="struct core_traits::value_type_set::ValueTypeSet">ValueTypeSet</a>),
+    InvalidProjection(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    UnboundVariable(<a class="struct" href="../../edn/symbols/struct.PlainSymbol.html" title="struct edn::symbols::PlainSymbol">PlainSymbol</a>),
+    NoTypeAvailableForVariable(<a class="struct" href="../../edn/symbols/struct.PlainSymbol.html" title="struct edn::symbols::PlainSymbol">PlainSymbol</a>),
+    UnexpectedResultsType(&amp;'static <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>,&nbsp;&amp;'static <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>),
+    UnexpectedResultsTupleLength(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>,&nbsp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>),
+    AmbiguousAggregates(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>,&nbsp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>),
+    RusqliteError(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>),
+    DbError(<a class="struct" href="../../db_traits/errors/struct.DbError.html" title="struct db_traits::errors::DbError">DbError</a>),
+    PullError(<a class="enum" href="../../query_pull_traits/errors/enum.PullError.html" title="enum query_pull_traits::errors::PullError">PullError</a>),
+}</pre><h2 id='variants' class='variants small-section-header'>
+                   Variants<a href='#variants' class='anchor'></a></h2>
+<span id="variant.NotYetImplemented" class="variant small-section-header"><a href="#variant.NotYetImplemented" class="anchor field"></a><span id='NotYetImplemented.v' class='invisible'><code>NotYetImplemented(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><div class='docblock'><p>We're just not done yet.  Message that the feature is recognized but not yet
+implemented.</p>
+</div><span id="variant.CannotProjectImpossibleBinding" class="variant small-section-header"><a href="#variant.CannotProjectImpossibleBinding" class="anchor field"></a><span id='CannotProjectImpossibleBinding.v' class='invisible'><code>CannotProjectImpossibleBinding(<a class="enum" href="../../query_projector_traits/aggregates/enum.SimpleAggregationOp.html" title="enum query_projector_traits::aggregates::SimpleAggregationOp">SimpleAggregationOp</a>)</code></span></span><span id="variant.CannotApplyAggregateOperationToTypes" class="variant small-section-header"><a href="#variant.CannotApplyAggregateOperationToTypes" class="anchor field"></a><span id='CannotApplyAggregateOperationToTypes.v' class='invisible'><code>CannotApplyAggregateOperationToTypes(<a class="enum" href="../../query_projector_traits/aggregates/enum.SimpleAggregationOp.html" title="enum query_projector_traits::aggregates::SimpleAggregationOp">SimpleAggregationOp</a>,&nbsp;<a class="struct" href="../../core_traits/value_type_set/struct.ValueTypeSet.html" title="struct core_traits::value_type_set::ValueTypeSet">ValueTypeSet</a>)</code></span></span><span id="variant.InvalidProjection" class="variant small-section-header"><a href="#variant.InvalidProjection" class="anchor field"></a><span id='InvalidProjection.v' class='invisible'><code>InvalidProjection(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><span id="variant.UnboundVariable" class="variant small-section-header"><a href="#variant.UnboundVariable" class="anchor field"></a><span id='UnboundVariable.v' class='invisible'><code>UnboundVariable(<a class="struct" href="../../edn/symbols/struct.PlainSymbol.html" title="struct edn::symbols::PlainSymbol">PlainSymbol</a>)</code></span></span><span id="variant.NoTypeAvailableForVariable" class="variant small-section-header"><a href="#variant.NoTypeAvailableForVariable" class="anchor field"></a><span id='NoTypeAvailableForVariable.v' class='invisible'><code>NoTypeAvailableForVariable(<a class="struct" href="../../edn/symbols/struct.PlainSymbol.html" title="struct edn::symbols::PlainSymbol">PlainSymbol</a>)</code></span></span><span id="variant.UnexpectedResultsType" class="variant small-section-header"><a href="#variant.UnexpectedResultsType" class="anchor field"></a><span id='UnexpectedResultsType.v' class='invisible'><code>UnexpectedResultsType(&amp;'static <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>,&nbsp;&amp;'static <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>)</code></span></span><span id="variant.UnexpectedResultsTupleLength" class="variant small-section-header"><a href="#variant.UnexpectedResultsTupleLength" class="anchor field"></a><span id='UnexpectedResultsTupleLength.v' class='invisible'><code>UnexpectedResultsTupleLength(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>,&nbsp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>)</code></span></span><span id="variant.AmbiguousAggregates" class="variant small-section-header"><a href="#variant.AmbiguousAggregates" class="anchor field"></a><span id='AmbiguousAggregates.v' class='invisible'><code>AmbiguousAggregates(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>,&nbsp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>)</code></span></span><span id="variant.RusqliteError" class="variant small-section-header"><a href="#variant.RusqliteError" class="anchor field"></a><span id='RusqliteError.v' class='invisible'><code>RusqliteError(<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span></span><span id="variant.DbError" class="variant small-section-header"><a href="#variant.DbError" class="anchor field"></a><span id='DbError.v' class='invisible'><code>DbError(<a class="struct" href="../../db_traits/errors/struct.DbError.html" title="struct db_traits::errors::DbError">DbError</a>)</code></span></span><span id="variant.PullError" class="variant small-section-header"><a href="#variant.PullError" class="anchor field"></a><span id='PullError.v' class='invisible'><code>PullError(<a class="enum" href="../../query_pull_traits/errors/enum.PullError.html" title="enum query_pull_traits::errors::PullError">PullError</a>)</code></span></span>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="enum" href="../../query_projector_traits/errors/enum.ProjectorError.html" title="enum query_projector_traits::errors::ProjectorError">ProjectorError</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/query_projector_traits/errors.rs.html#32' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/query_projector_traits/errors.rs.html#32' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-From%3CError%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="enum" href="../../rusqlite/error/enum.Error.html" title="enum rusqlite::error::Error">Error</a>&gt; for <a class="enum" href="../../query_projector_traits/errors/enum.ProjectorError.html" title="enum query_projector_traits::errors::ProjectorError">ProjectorError</a></code><a href='#impl-From%3CError%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/query_projector_traits/errors.rs.html#75-79' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from' class="method"><span id='from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(error: <a class="enum" href="../../rusqlite/error/enum.Error.html" title="enum rusqlite::error::Error">Error</a>) -&gt; <a class="enum" href="../../query_projector_traits/errors/enum.ProjectorError.html" title="enum query_projector_traits::errors::ProjectorError">ProjectorError</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/query_projector_traits/errors.rs.html#76-78' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CDbError%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="../../db_traits/errors/struct.DbError.html" title="struct db_traits::errors::DbError">DbError</a>&gt; for <a class="enum" href="../../query_projector_traits/errors/enum.ProjectorError.html" title="enum query_projector_traits::errors::ProjectorError">ProjectorError</a></code><a href='#impl-From%3CDbError%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/query_projector_traits/errors.rs.html#81-85' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-1' class="method"><span id='from.v-1' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(error: <a class="struct" href="../../db_traits/errors/struct.DbError.html" title="struct db_traits::errors::DbError">DbError</a>) -&gt; <a class="enum" href="../../query_projector_traits/errors/enum.ProjectorError.html" title="enum query_projector_traits::errors::ProjectorError">ProjectorError</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/query_projector_traits/errors.rs.html#82-84' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CPullError%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="enum" href="../../query_pull_traits/errors/enum.PullError.html" title="enum query_pull_traits::errors::PullError">PullError</a>&gt; for <a class="enum" href="../../query_projector_traits/errors/enum.ProjectorError.html" title="enum query_projector_traits::errors::ProjectorError">ProjectorError</a></code><a href='#impl-From%3CPullError%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/query_projector_traits/errors.rs.html#87-91' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-2' class="method"><span id='from.v-2' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(error: <a class="enum" href="../../query_pull_traits/errors/enum.PullError.html" title="enum query_pull_traits::errors::PullError">PullError</a>) -&gt; <a class="enum" href="../../query_projector_traits/errors/enum.ProjectorError.html" title="enum query_projector_traits::errors::ProjectorError">ProjectorError</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/query_projector_traits/errors.rs.html#88-90' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "query_projector_traits";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

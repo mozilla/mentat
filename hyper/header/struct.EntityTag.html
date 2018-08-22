@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `EntityTag` struct in crate `hyper`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, EntityTag">
+
+    <title>hyper::header::EntityTag - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct EntityTag</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#fields">Fields</a><div class="sidebar-links"><a href="#structfield.weak">weak</a></div><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.new">new</a><a href="#method.weak">weak</a><a href="#method.strong">strong</a><a href="#method.tag">tag</a><a href="#method.set_tag">set_tag</a><a href="#method.strong_eq">strong_eq</a><a href="#method.weak_eq">weak_eq</a><a href="#method.strong_ne">strong_ne</a><a href="#method.weak_ne">weak_ne</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Clone">Clone</a><a href="#impl-Debug">Debug</a><a href="#impl-Eq">Eq</a><a href="#impl-PartialEq">PartialEq</a><a href="#impl-Display">Display</a><a href="#impl-FromStr">FromStr</a></div></div><p class='location'><a href='../index.html'>hyper</a>::<wbr><a href='index.html'>header</a></p><script>window.sidebarCurrent = {name: 'EntityTag', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>hyper</a>::<wbr><a href='index.html'>header</a>::<wbr><a class="struct" href=''>EntityTag</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#44-49' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct EntityTag {
+    pub weak: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>,
+    // some fields omitted
+}</pre><div class='docblock'><p>An entity tag, defined in <a href="https://tools.ietf.org/html/rfc7232#section-2.3">RFC7232</a></p>
+<p>An entity tag consists of a string enclosed by two literal double quotes.
+Preceding the first double quote is an optional weakness indicator,
+which always looks like <code>W/</code>. Examples for valid tags are <code>&quot;xyzzy&quot;</code> and <code>W/&quot;xyzzy&quot;</code>.</p>
+<h1 id="abnf" class="section-header"><a href="#abnf">ABNF</a></h1>
+<pre><code class="language-text">entity-tag = [ weak ] opaque-tag
+weak       = %x57.2F ; &quot;W/&quot;, case-sensitive
+opaque-tag = DQUOTE *etagc DQUOTE
+etagc      = %x21 / %x23-7E / obs-text
+           ; VCHAR except double quotes, plus obs-text
+</code></pre>
+<h1 id="comparison" class="section-header"><a href="#comparison">Comparison</a></h1>
+<p>To check if two entity tags are equivalent in an application always use the <code>strong_eq</code> or
+<code>weak_eq</code> methods based on the context of the Tag. Only use <code>==</code> to check if two tags are
+identical.</p>
+<p>The example below shows the results for a set of entity-tag pairs and
+both the weak and strong comparison function results:</p>
+<table><thead><tr><th> ETag 1  </th><th> ETag 2  </th><th> Strong Comparison </th><th> Weak Comparison </th></tr></thead><tbody>
+<tr><td> <code>W/&quot;1&quot;</code> </td><td> <code>W/&quot;1&quot;</code> </td><td> no match          </td><td> match           </td></tr>
+<tr><td> <code>W/&quot;1&quot;</code> </td><td> <code>W/&quot;2&quot;</code> </td><td> no match          </td><td> no match        </td></tr>
+<tr><td> <code>W/&quot;1&quot;</code> </td><td> <code>&quot;1&quot;</code>   </td><td> no match          </td><td> match           </td></tr>
+<tr><td> <code>&quot;1&quot;</code>   </td><td> <code>&quot;1&quot;</code>   </td><td> match             </td><td> match           </td></tr>
+</tbody></table>
+</div><h2 id='fields' class='fields small-section-header'>
+                       Fields<a href='#fields' class='anchor'></a></h2><span id="structfield.weak" class="structfield small-section-header">
+                           <a href="#structfield.weak" class="anchor field"></a>
+                           <span id="weak.v" class='invisible'>
+                           <code>weak: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code>
+                           </span></span><div class='docblock'><p>Weakness indicator for the tag</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#51-109' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class="method"><span id='new.v' class='invisible'><code>pub fn <a href='#method.new' class='fnname'>new</a>(weak: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>, tag: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>) -&gt; <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#55-58' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Constructs a new EntityTag.</p>
+<h1 id="panics" class="section-header"><a href="#panics">Panics</a></h1>
+<p>If the tag contains invalid characters.</p>
+</div><h4 id='method.weak' class="method"><span id='weak.v-1' class='invisible'><code>pub fn <a href='#method.weak' class='fnname'>weak</a>(tag: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>) -&gt; <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#63-65' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Constructs a new weak EntityTag.</p>
+<h1 id="panics-1" class="section-header"><a href="#panics-1">Panics</a></h1>
+<p>If the tag contains invalid characters.</p>
+</div><h4 id='method.strong' class="method"><span id='strong.v' class='invisible'><code>pub fn <a href='#method.strong' class='fnname'>strong</a>(tag: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>) -&gt; <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#70-72' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Constructs a new strong EntityTag.</p>
+<h1 id="panics-2" class="section-header"><a href="#panics-2">Panics</a></h1>
+<p>If the tag contains invalid characters.</p>
+</div><h4 id='method.tag' class="method"><span id='tag.v' class='invisible'><code>pub fn <a href='#method.tag' class='fnname'>tag</a>(&amp;self) -&gt; &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#75-77' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Get the tag.</p>
+</div><h4 id='method.set_tag' class="method"><span id='set_tag.v' class='invisible'><code>pub fn <a href='#method.set_tag' class='fnname'>set_tag</a>(&amp;mut self, tag: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#82-85' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Set the tag.</p>
+<h1 id="panics-3" class="section-header"><a href="#panics-3">Panics</a></h1>
+<p>If the tag contains invalid characters.</p>
+</div><h4 id='method.strong_eq' class="method"><span id='strong_eq.v' class='invisible'><code>pub fn <a href='#method.strong_eq' class='fnname'>strong_eq</a>(&amp;self, other: &amp;<a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#89-91' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>For strong comparison two entity-tags are equivalent if both are not weak and their
+opaque-tags match character-by-character.</p>
+</div><h4 id='method.weak_eq' class="method"><span id='weak_eq.v' class='invisible'><code>pub fn <a href='#method.weak_eq' class='fnname'>weak_eq</a>(&amp;self, other: &amp;<a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#96-98' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>For weak comparison two entity-tags are equivalent if their
+opaque-tags match character-by-character, regardless of either or
+both being tagged as &quot;weak&quot;.</p>
+</div><h4 id='method.strong_ne' class="method"><span id='strong_ne.v' class='invisible'><code>pub fn <a href='#method.strong_ne' class='fnname'>strong_ne</a>(&amp;self, other: &amp;<a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#101-103' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>The inverse of <code>EntityTag.strong_eq()</code>.</p>
+</div><h4 id='method.weak_ne' class="method"><span id='weak_ne.v' class='invisible'><code>pub fn <a href='#method.weak_ne' class='fnname'>weak_ne</a>(&amp;self, other: &amp;<a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#106-108' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>The inverse of <code>EntityTag.weak_eq()</code>.</p>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Clone' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code><a href='#impl-Clone' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#43' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#43' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#112-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#43' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#43' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-Eq' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html" title="trait core::cmp::Eq">Eq</a> for <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code><a href='#impl-Eq' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#43' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div><h3 id='impl-PartialEq' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html" title="trait core::cmp::PartialEq">PartialEq</a> for <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code><a href='#impl-PartialEq' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#43' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.eq' class="method"><span id='eq.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq' class='fnname'>eq</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#43' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq">Read more</a></p>
+</div><h4 id='method.ne' class="method"><span id='ne.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne' class='fnname'>ne</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#43' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>!=</code>.</p>
+</div></div><h3 id='impl-Display' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a> for <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code><a href='#impl-Display' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#111-119' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt-1' class="method"><span id='fmt.v-1' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#112-118' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-FromStr' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/str/trait.FromStr.html" title="trait core::str::FromStr">FromStr</a> for <a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a></code><a href='#impl-FromStr' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#121-142' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='associatedtype.Err' class="type"><span id='Err.t' class='invisible'><code>type <a href='https://doc.rust-lang.org/nightly/core/str/trait.FromStr.html#associatedtype.Err' class="type">Err</a> = <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code></span></h4>
+<div class='docblock'><p>The associated error which can be returned from parsing.</p>
+</div><h4 id='method.from_str' class="method"><span id='from_str.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/str/trait.FromStr.html#tymethod.from_str' class='fnname'>from_str</a>(s: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>) -&gt; <a class="type" href="../../hyper/error/type.Result.html" title="type hyper::error::Result">Result</a>&lt;<a class="struct" href="../../hyper/header/struct.EntityTag.html" title="struct hyper::header::EntityTag">EntityTag</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/header/shared/entity.rs.html#123-141' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Parses a string <code>s</code> to return a value of this type. <a href="https://doc.rust-lang.org/nightly/core/str/trait.FromStr.html#tymethod.from_str">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "hyper";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Row` struct in crate `rusqlite`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Row">
+
+    <title>rusqlite::Row - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Row</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.get">get</a><a href="#method.get_checked">get_checked</a><a href="#method.column_count">column_count</a></div></div><p class='location'><a href='index.html'>rusqlite</a></p><script>window.sidebarCurrent = {name: 'Row', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>rusqlite</a>::<wbr><a class="struct" href=''>Row</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/rusqlite/row.rs.html#146-149' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Row&lt;'a, 'stmt&gt; { /* fields omitted */ }</pre><div class='docblock'><p>A single result row of a query.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;'a, 'stmt&gt; <a class="struct" href="../rusqlite/struct.Row.html" title="struct rusqlite::Row">Row</a>&lt;'a, 'stmt&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/row.rs.html#151-198' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.get' class="method"><span id='get.v' class='invisible'><code>pub fn <a href='#method.get' class='fnname'>get</a>&lt;I:&nbsp;<a class="trait" href="../rusqlite/trait.RowIndex.html" title="trait rusqlite::RowIndex">RowIndex</a>, T:&nbsp;<a class="trait" href="../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a>&gt;(&amp;self, idx: I) -&gt; T</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/row.rs.html#161-163' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Get the value of a particular column of the result row.</p>
+<h2 id="failure" class="section-header"><a href="#failure">Failure</a></h2>
+<p>Panics if calling <code>row.get_checked(idx)</code> would return an error, including:</p>
+<ul>
+<li>If the underlying SQLite column type is not a valid type as a source for <code>T</code></li>
+<li>If the underlying SQLite integral value is outside the range representable by <code>T</code></li>
+<li>If <code>idx</code> is outside the range of columns in the returned query</li>
+</ul>
+</div><h4 id='method.get_checked' class="method"><span id='get_checked.v' class='invisible'><code>pub fn <a href='#method.get_checked' class='fnname'>get_checked</a>&lt;I:&nbsp;<a class="trait" href="../rusqlite/trait.RowIndex.html" title="trait rusqlite::RowIndex">RowIndex</a>, T:&nbsp;<a class="trait" href="../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a>&gt;(&amp;self, idx: I) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/row.rs.html#177-192' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Get the value of a particular column of the result row.</p>
+<h2 id="failure-1" class="section-header"><a href="#failure-1">Failure</a></h2>
+<p>Returns an <code>Error::InvalidColumnType</code> if the underlying SQLite column
+type is not a valid type as a source for <code>T</code>.</p>
+<p>Returns an <code>Error::InvalidColumnIndex</code> if <code>idx</code> is outside the valid column range
+for this row.</p>
+<p>Returns an <code>Error::InvalidColumnName</code> if <code>idx</code> is not a valid column name
+for this row.</p>
+</div><h4 id='method.column_count' class="method"><span id='column_count.v' class='invisible'><code>pub fn <a href='#method.column_count' class='fnname'>column_count</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/row.rs.html#195-197' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Return the number of columns in the current row.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "rusqlite";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `WalkNeighbors` struct in crate `petgraph`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, WalkNeighbors">
+
+    <title>petgraph::stable_graph::WalkNeighbors - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct WalkNeighbors</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.next">next</a><a href="#method.next_node">next_node</a><a href="#method.next_edge">next_edge</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Clone">Clone</a></div></div><p class='location'><a href='../index.html'>petgraph</a>::<wbr><a href='index.html'>stable_graph</a></p><script>window.sidebarCurrent = {name: 'WalkNeighbors', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>petgraph</a>::<wbr><a href='index.html'>stable_graph</a>::<wbr><a class="struct" href=''>WalkNeighbors</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/petgraph/graph_impl/stable_graph/mod.rs.html#1485-1487' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct WalkNeighbors&lt;Ix&gt; { /* fields omitted */ }</pre><div class='docblock'><p>A “walker” object that can be used to step through the edge list of a node.</p>
+<p>See <a href="struct.Neighbors.html#method.detach"><em>.detach()</em></a> for more information.</p>
+<p>The walker does not borrow from the graph, so it lets you step through
+neighbors or incident edges while also mutating graph weights, as
+in the following example:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">petgraph</span>::<span class="ident">visit</span>::<span class="ident">Dfs</span>;
+<span class="kw">use</span> <span class="ident">petgraph</span>::<span class="ident">Incoming</span>;
+<span class="kw">use</span> <span class="ident">petgraph</span>::<span class="ident">stable_graph</span>::<span class="ident">StableGraph</span>;
+
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gr</span> <span class="op">=</span> <span class="ident">StableGraph</span>::<span class="ident">new</span>();
+<span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">gr</span>.<span class="ident">add_node</span>(<span class="number">0.</span>);
+<span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="ident">gr</span>.<span class="ident">add_node</span>(<span class="number">0.</span>);
+<span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident">gr</span>.<span class="ident">add_node</span>(<span class="number">0.</span>);
+<span class="ident">gr</span>.<span class="ident">add_edge</span>(<span class="ident">a</span>, <span class="ident">b</span>, <span class="number">3.</span>);
+<span class="ident">gr</span>.<span class="ident">add_edge</span>(<span class="ident">b</span>, <span class="ident">c</span>, <span class="number">2.</span>);
+<span class="ident">gr</span>.<span class="ident">add_edge</span>(<span class="ident">c</span>, <span class="ident">b</span>, <span class="number">1.</span>);
+
+<span class="comment">// step through the graph and sum incoming edges into the node weight</span>
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dfs</span> <span class="op">=</span> <span class="ident">Dfs</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">gr</span>, <span class="ident">a</span>);
+<span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">node</span>) <span class="op">=</span> <span class="ident">dfs</span>.<span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="ident">gr</span>) {
+    <span class="comment">// use a detached neighbors walker</span>
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">edges</span> <span class="op">=</span> <span class="ident">gr</span>.<span class="ident">neighbors_directed</span>(<span class="ident">node</span>, <span class="ident">Incoming</span>).<span class="ident">detach</span>();
+    <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">edge</span>) <span class="op">=</span> <span class="ident">edges</span>.<span class="ident">next_edge</span>(<span class="kw-2">&amp;</span><span class="ident">gr</span>) {
+        <span class="ident">gr</span>[<span class="ident">node</span>] <span class="op">+=</span> <span class="ident">gr</span>[<span class="ident">edge</span>];
+    }
+}
+
+<span class="comment">// check the result</span>
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">gr</span>[<span class="ident">a</span>], <span class="number">0.</span>);
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">gr</span>[<span class="ident">b</span>], <span class="number">4.</span>);
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">gr</span>[<span class="ident">c</span>], <span class="number">2.</span>);</pre>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;Ix:&nbsp;<a class="trait" href="../../petgraph/graph/trait.IndexType.html" title="trait petgraph::graph::IndexType">IndexType</a>&gt; <a class="struct" href="../../petgraph/stable_graph/struct.WalkNeighbors.html" title="struct petgraph::stable_graph::WalkNeighbors">WalkNeighbors</a>&lt;Ix&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/petgraph/graph_impl/stable_graph/mod.rs.html#1493-1516' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.next' class="method"><span id='next.v' class='invisible'><code>pub fn <a href='#method.next' class='fnname'>next</a>&lt;N, E, Ty:&nbsp;<a class="trait" href="../../petgraph/trait.EdgeType.html" title="trait petgraph::EdgeType">EdgeType</a>&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;g: &amp;<a class="struct" href="../../petgraph/stable_graph/struct.StableGraph.html" title="struct petgraph::stable_graph::StableGraph">StableGraph</a>&lt;N, E, Ty, Ix&gt;<br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="struct" href="../../petgraph/graph/struct.EdgeIndex.html" title="struct petgraph::graph::EdgeIndex">EdgeIndex</a>&lt;Ix&gt;, <a class="struct" href="../../petgraph/graph/struct.NodeIndex.html" title="struct petgraph::graph::NodeIndex">NodeIndex</a>&lt;Ix&gt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/petgraph/graph_impl/stable_graph/mod.rs.html#1500-1503' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Step to the next edge and its endpoint node in the walk for graph <code>g</code>.</p>
+<p>The next node indices are always the others than the starting point
+where the <code>WalkNeighbors</code> value was created.
+For an <code>Outgoing</code> walk, the target nodes,
+for an <code>Incoming</code> walk, the source nodes of the edge.</p>
+</div><h4 id='method.next_node' class="method"><span id='next_node.v' class='invisible'><code>pub fn <a href='#method.next_node' class='fnname'>next_node</a>&lt;N, E, Ty:&nbsp;<a class="trait" href="../../petgraph/trait.EdgeType.html" title="trait petgraph::EdgeType">EdgeType</a>&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;g: &amp;<a class="struct" href="../../petgraph/stable_graph/struct.StableGraph.html" title="struct petgraph::stable_graph::StableGraph">StableGraph</a>&lt;N, E, Ty, Ix&gt;<br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../../petgraph/graph/struct.NodeIndex.html" title="struct petgraph::graph::NodeIndex">NodeIndex</a>&lt;Ix&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/petgraph/graph_impl/stable_graph/mod.rs.html#1505-1509' title='goto source code'>[src]</a></span></h4>
+<h4 id='method.next_edge' class="method"><span id='next_edge.v' class='invisible'><code>pub fn <a href='#method.next_edge' class='fnname'>next_edge</a>&lt;N, E, Ty:&nbsp;<a class="trait" href="../../petgraph/trait.EdgeType.html" title="trait petgraph::EdgeType">EdgeType</a>&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;g: &amp;<a class="struct" href="../../petgraph/stable_graph/struct.StableGraph.html" title="struct petgraph::stable_graph::StableGraph">StableGraph</a>&lt;N, E, Ty, Ix&gt;<br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../../petgraph/graph/struct.EdgeIndex.html" title="struct petgraph::graph::EdgeIndex">EdgeIndex</a>&lt;Ix&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/petgraph/graph_impl/stable_graph/mod.rs.html#1511-1515' title='goto source code'>[src]</a></span></h4>
+</div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Clone' class='impl'><span class='in-band'><code>impl&lt;Ix:&nbsp;<a class="trait" href="../../petgraph/graph/trait.IndexType.html" title="trait petgraph::graph::IndexType">IndexType</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="struct" href="../../petgraph/stable_graph/struct.WalkNeighbors.html" title="struct petgraph::stable_graph::WalkNeighbors">WalkNeighbors</a>&lt;Ix&gt;</code><a href='#impl-Clone' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/petgraph/graph_impl/stable_graph/mod.rs.html#1489-1491' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/petgraph/macros.rs.html#4-10' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#112-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "petgraph";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

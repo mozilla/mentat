@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `types` mod in crate `rusqlite`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, types">
+
+    <title>rusqlite::types - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module types</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'><a href='../index.html'>rusqlite</a></p><script>window.sidebarCurrent = {name: 'types', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>rusqlite</a>::<wbr><a class="mod" href=''>types</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/rusqlite/types/mod.rs.html#1-322' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>Traits dealing with SQLite data types.</p>
+<p>SQLite uses a <a href="https://www.sqlite.org/datatype3.html">dynamic type system</a>. Implementations of
+the <code>ToSql</code> and <code>FromSql</code> traits are provided for the basic types that SQLite provides methods
+for:</p>
+<ul>
+<li>Integers (<code>i32</code> and <code>i64</code>; SQLite uses <code>i64</code> internally, so getting an <code>i32</code> will truncate
+if the value is too large or too small).</li>
+<li>Reals (<code>f64</code>)</li>
+<li>Strings (<code>String</code> and <code>&amp;str</code>)</li>
+<li>Blobs (<code>Vec&lt;u8&gt;</code> and <code>&amp;[u8]</code>)</li>
+</ul>
+<p>Additionally, because it is such a common data type, implementations are provided for
+<code>time::Timespec</code> that use a string for storage (using the same format string,
+<code>&quot;%Y-%m-%d %H:%M:%S&quot;</code>, as SQLite's builtin
+<a href="https://www.sqlite.org/lang_datefunc.html">datetime</a> function.  Note that this storage
+truncates timespecs to the nearest second. If you want different storage for timespecs, you can
+use a newtype. For example, to store timespecs as <code>f64</code>s:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">rusqlite</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">time</span>;
+
+<span class="kw">use</span> <span class="ident">rusqlite</span>::<span class="ident">types</span>::{<span class="ident">FromSql</span>, <span class="ident">FromSqlResult</span>, <span class="ident">ValueRef</span>, <span class="ident">ToSql</span>, <span class="ident">ToSqlOutput</span>};
+<span class="kw">use</span> <span class="ident">rusqlite</span>::{<span class="prelude-ty">Result</span>};
+
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TimespecSql</span>(<span class="kw">pub</span> <span class="ident">time</span>::<span class="ident">Timespec</span>);
+
+<span class="kw">impl</span> <span class="ident">FromSql</span> <span class="kw">for</span> <span class="ident">TimespecSql</span> {
+    <span class="kw">fn</span> <span class="ident">column_result</span>(<span class="ident">value</span>: <span class="ident">ValueRef</span>) <span class="op">-&gt;</span> <span class="ident">FromSqlResult</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        <span class="ident">f64</span>::<span class="ident">column_result</span>(<span class="ident">value</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">as_f64</span><span class="op">|</span> {
+            <span class="ident">TimespecSql</span>(<span class="ident">time</span>::<span class="ident">Timespec</span>{ <span class="ident">sec</span>: <span class="ident">as_f64</span>.<span class="ident">trunc</span>() <span class="kw">as</span> <span class="ident">i64</span>,
+                                        <span class="ident">nsec</span>: (<span class="ident">as_f64</span>.<span class="ident">fract</span>() <span class="op">*</span> <span class="number">1.0e9</span>) <span class="kw">as</span> <span class="ident">i32</span> })
+        })
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">ToSql</span> <span class="kw">for</span> <span class="ident">TimespecSql</span> {
+    <span class="kw">fn</span> <span class="ident">to_sql</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ToSqlOutput</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">TimespecSql</span>(<span class="ident">ts</span>) <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>;
+        <span class="kw">let</span> <span class="ident">as_f64</span> <span class="op">=</span> <span class="ident">ts</span>.<span class="ident">sec</span> <span class="kw">as</span> <span class="ident">f64</span> <span class="op">+</span> (<span class="ident">ts</span>.<span class="ident">nsec</span> <span class="kw">as</span> <span class="ident">f64</span>) <span class="op">/</span> <span class="number">1.0e9</span>;
+        <span class="prelude-val">Ok</span>(<span class="ident">as_f64</span>.<span class="ident">into</span>())
+    }
+}
+</pre>
+<p><code>ToSql</code> and <code>FromSql</code> are also implemented for <code>Option&lt;T&gt;</code> where <code>T</code> implements <code>ToSql</code> or
+<code>FromSql</code> for the cases where you want to know if a value was NULL (which gets translated to
+<code>None</code>).</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Null.html"
+                                  title='struct rusqlite::types::Null'>Null</a></td>
+                           <td class='docblock-short'>
+                                <p>Empty struct that can be used to fill in a query parameter as <code>NULL</code>.</p>
+
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.FromSqlError.html"
+                                  title='enum rusqlite::types::FromSqlError'>FromSqlError</a></td>
+                           <td class='docblock-short'>
+                                <p>Enum listing possible errors from <code>FromSql</code> trait.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.ToSqlOutput.html"
+                                  title='enum rusqlite::types::ToSqlOutput'>ToSqlOutput</a></td>
+                           <td class='docblock-short'>
+                                <p><code>ToSqlOutput</code> represents the possible output types for implementors of the <code>ToSql</code> trait.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.Type.html"
+                                  title='enum rusqlite::types::Type'>Type</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.Value.html"
+                                  title='enum rusqlite::types::Value'>Value</a></td>
+                           <td class='docblock-short'>
+                                <p>Owning <a href="http://sqlite.org/datatype3.html">dynamic type value</a>. Value's type is typically
+dictated by SQLite (not by the caller).</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.ValueRef.html"
+                                  title='enum rusqlite::types::ValueRef'>ValueRef</a></td>
+                           <td class='docblock-short'>
+                                <p>A non-owning <a href="http://sqlite.org/datatype3.html">dynamic type value</a>. Typically the
+memory backing this value is owned by SQLite.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.FromSql.html"
+                                  title='trait rusqlite::types::FromSql'>FromSql</a></td>
+                           <td class='docblock-short'>
+                                <p>A trait for types that can be created from a SQLite value.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.ToSql.html"
+                                  title='trait rusqlite::types::ToSql'>ToSql</a></td>
+                           <td class='docblock-short'>
+                                <p>A trait for types that can be converted into SQLite values.</p>
+
+                           </td>
+                       </tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="type" href="type.FromSqlResult.html"
+                                  title='type rusqlite::types::FromSqlResult'>FromSqlResult</a></td>
+                           <td class='docblock-short'>
+                                <p>Result type for implementors of the <code>FromSql</code> trait.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "rusqlite";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

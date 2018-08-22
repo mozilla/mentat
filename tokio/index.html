@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `tokio` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, tokio">
+
+    <title>tokio - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Crate tokio</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'tokio', ty: 'mod', relpath: '../'};</script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>tokio</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/tokio/lib.rs.html#1-235' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>A runtime for writing reliable, asynchronous, and slim applications.</p>
+<p>Tokio is an event-driven, non-blocking I/O platform for writing asynchronous
+applications with the Rust programming language. At a high level, it
+provides a few major components:</p>
+<ul>
+<li>A multi threaded, work-stealing based task [scheduler][runtime].</li>
+<li>A [reactor][reactor] backed by the operating system's event queue (epoll, kqueue,
+IOCP, etc...).</li>
+<li>Asynchronous [TCP and UDP][net] sockets.</li>
+<li>Asynchronous [filesystem][fs] operations.</li>
+<li>[Timer][timer] API for scheduling work in the future.</li>
+</ul>
+<p>Tokio is built using <a href="http://docs.rs/futures">futures</a> as the abstraction for managing the
+complexity of asynchronous programming.</p>
+<p>Guide level documentation is found on the <a href="https://tokio.rs/docs/getting-started/hello-world/">website</a>.</p>
+<h1 id="examples" class="section-header"><a href="#examples">Examples</a></h1>
+<p>A simple TCP echo server:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tokio</span>;
+
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">io</span>::<span class="ident">copy</span>;
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">net</span>::<span class="ident">TcpListener</span>;
+
+<span class="kw">fn</span> <span class="ident">main</span>() {
+    <span class="comment">// Bind the server&#39;s socket.</span>
+    <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="string">&quot;127.0.0.1:12345&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
+    <span class="kw">let</span> <span class="ident">listener</span> <span class="op">=</span> <span class="ident">TcpListener</span>::<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">addr</span>)
+        .<span class="ident">expect</span>(<span class="string">&quot;unable to bind TCP listener&quot;</span>);
+
+    <span class="comment">// Pull out a stream of sockets for incoming connections</span>
+    <span class="kw">let</span> <span class="ident">server</span> <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">incoming</span>()
+        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;accept failed = {:?}&quot;</span>, <span class="ident">e</span>))
+        .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">sock</span><span class="op">|</span> {
+            <span class="comment">// Split up the reading and writing parts of the</span>
+            <span class="comment">// socket.</span>
+            <span class="kw">let</span> (<span class="ident">reader</span>, <span class="ident">writer</span>) <span class="op">=</span> <span class="ident">sock</span>.<span class="ident">split</span>();
+
+            <span class="comment">// A future that echos the data and returns how</span>
+            <span class="comment">// many bytes were copied...</span>
+            <span class="kw">let</span> <span class="ident">bytes_copied</span> <span class="op">=</span> <span class="ident">copy</span>(<span class="ident">reader</span>, <span class="ident">writer</span>);
+
+            <span class="comment">// ... after which we&#39;ll print what happened.</span>
+            <span class="kw">let</span> <span class="ident">handle_conn</span> <span class="op">=</span> <span class="ident">bytes_copied</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">amt</span><span class="op">|</span> {
+                <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;wrote {:?} bytes&quot;</span>, <span class="ident">amt</span>)
+            }).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> {
+                <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;IO error {:?}&quot;</span>, <span class="ident">err</span>)
+            });
+
+            <span class="comment">// Spawn the future as a concurrent task.</span>
+            <span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">handle_conn</span>)
+        });
+
+    <span class="comment">// Start the Tokio runtime</span>
+    <span class="ident">tokio</span>::<span class="ident">run</span>(<span class="ident">server</span>);
+}</pre>
+</div><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
+<table><tr><td><code>pub use executor::<a class="fn" href="../tokio/executor/fn.spawn.html" title="fn tokio::executor::spawn">spawn</a>;</code></td></tr><tr><td><code>pub use runtime::<a class="fn" href="../tokio/runtime/fn.run.html" title="fn tokio::runtime::run">run</a>;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="clock/index.html"
+                                  title='mod tokio::clock'>clock</a></td>
+                           <td class='docblock-short'>
+                                <p>A configurable source of time.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="executor/index.html"
+                                  title='mod tokio::executor'>executor</a></td>
+                           <td class='docblock-short'>
+                                <p>Task execution utilities.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="fs/index.html"
+                                  title='mod tokio::fs'>fs</a></td>
+                           <td class='docblock-short'>
+                                <p>Asynchronous filesystem manipulation operations.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="io/index.html"
+                                  title='mod tokio::io'>io</a></td>
+                           <td class='docblock-short'>
+                                <p>Asynchronous I/O.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="net/index.html"
+                                  title='mod tokio::net'>net</a></td>
+                           <td class='docblock-short'>
+                                <p>TCP/UDP bindings for <code>tokio</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="prelude/index.html"
+                                  title='mod tokio::prelude'>prelude</a></td>
+                           <td class='docblock-short'>
+                                <p>A &quot;prelude&quot; for users of the <code>tokio</code> crate.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="reactor/index.html"
+                                  title='mod tokio::reactor'>reactor</a></td>
+                           <td class='docblock-short'>
+                                <p>Event loop that drives Tokio I/O resources.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="runtime/index.html"
+                                  title='mod tokio::runtime'>runtime</a></td>
+                           <td class='docblock-short'>
+                                <p>A batteries included runtime for applications using Tokio.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="timer/index.html"
+                                  title='mod tokio::timer'>timer</a></td>
+                           <td class='docblock-short'>
+                                <p>Utilities for tracking time.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="util/index.html"
+                                  title='mod tokio::util'>util</a></td>
+                           <td class='docblock-short'>
+                                <p>Utilities for working with Tokio.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "tokio";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

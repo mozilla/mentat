@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Statement` struct in crate `rusqlite`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Statement">
+
+    <title>rusqlite::Statement - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Statement</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.column_names">column_names</a><a href="#method.column_count">column_count</a><a href="#method.column_index">column_index</a><a href="#method.execute">execute</a><a href="#method.execute_named">execute_named</a><a href="#method.insert">insert</a><a href="#method.query">query</a><a href="#method.query_named">query_named</a><a href="#method.query_map">query_map</a><a href="#method.query_map_named">query_map_named</a><a href="#method.query_and_then">query_and_then</a><a href="#method.query_and_then_named">query_and_then_named</a><a href="#method.exists">exists</a><a href="#method.query_row">query_row</a><a href="#method.finalize">finalize</a><a href="#method.parameter_index">parameter_index</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a><a href="#impl-Drop">Drop</a></div></div><p class='location'><a href='index.html'>rusqlite</a></p><script>window.sidebarCurrent = {name: 'Statement', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>rusqlite</a>::<wbr><a class="struct" href=''>Statement</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/rusqlite/statement.rs.html#13-16' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Statement&lt;'conn&gt; { /* fields omitted */ }</pre><div class='docblock'><p>A prepared statement.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;'conn&gt; <a class="struct" href="../rusqlite/struct.Statement.html" title="struct rusqlite::Statement">Statement</a>&lt;'conn&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#18-469' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.column_names' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;</h3><code class="content"><span class="where fmt-newline">impl <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;</span></code></div></div><span id='column_names.v' class='invisible'><code>pub fn <a href='#method.column_names' class='fnname'>column_names</a>(&amp;self) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;&amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#20-29' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Get all the column names in the result set of the prepared statement.</p>
+</div><h4 id='method.column_count' class="method"><span id='column_count.v' class='invisible'><code>pub fn <a href='#method.column_count' class='fnname'>column_count</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#32-34' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Return the number of columns in the result set returned by the prepared statement.</p>
+</div><h4 id='method.column_index' class="method"><span id='column_index.v' class='invisible'><code>pub fn <a href='#method.column_index' class='fnname'>column_index</a>(&amp;self, name: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#44-53' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the column index in the result set for a given column name.</p>
+<p>If there is no AS clause then the name of the column is unspecified and may change from one
+release of SQLite to the next.</p>
+<h1 id="failure" class="section-header"><a href="#failure">Failure</a></h1>
+<p>Will return an <code>Error::InvalidColumnName</code> when there is no column with the specified <code>name</code>.</p>
+</div><h4 id='method.execute' class="method"><span id='execute.v' class='invisible'><code>pub fn <a href='#method.execute' class='fnname'>execute</a>(&amp;mut self, params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a>&amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#78-81' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Execute the prepared statement.</p>
+<p>On success, returns the number of rows that were changed or inserted or deleted (via
+<code>sqlite3_changes</code>).</p>
+<h2 id="example" class="section-header"><a href="#example">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">fn</span> <span class="ident">update_rows</span>(<span class="ident">conn</span>: <span class="kw-2">&amp;</span><span class="ident">Connection</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">conn</span>.<span class="ident">prepare</span>(<span class="string">&quot;UPDATE foo SET bar = &#39;baz&#39; WHERE qux = ?&quot;</span>));
+
+    <span class="macro">try</span><span class="macro">!</span>(<span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="number">1i32</span>]));
+    <span class="macro">try</span><span class="macro">!</span>(<span class="ident">stmt</span>.<span class="ident">execute</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="number">2i32</span>]));
+
+    <span class="prelude-val">Ok</span>(())
+}</pre>
+<h1 id="failure-1" class="section-header"><a href="#failure-1">Failure</a></h1>
+<p>Will return <code>Err</code> if binding parameters fails, the executed statement returns rows (in
+which case <code>query</code> should be used instead), or the underling SQLite call fails.</p>
+</div><h4 id='method.execute_named' class="method"><span id='execute_named.v' class='invisible'><code>pub fn <a href='#method.execute_named' class='fnname'>execute_named</a>(&amp;mut self, params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a>&amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>, &amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="type" href="https://doc.rust-lang.org/nightly/std/os/raw/type.c_int.html" title="type std::os::raw::c_int">c_int</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#105-108' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Execute the prepared statement with named parameter(s). If any parameters
+that were in the prepared statement are not included in <code>params</code>, they
+will continue to use the most-recently bound value from a previous call
+to <code>execute_named</code>, or <code>NULL</code> if they have never been bound.</p>
+<p>On success, returns the number of rows that were changed or inserted or deleted (via
+<code>sqlite3_changes</code>).</p>
+<h2 id="example-1" class="section-header"><a href="#example-1">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">fn</span> <span class="ident">insert</span>(<span class="ident">conn</span>: <span class="kw-2">&amp;</span><span class="ident">Connection</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">conn</span>.<span class="ident">prepare</span>(<span class="string">&quot;INSERT INTO test (name) VALUES (:name)&quot;</span>));
+    <span class="ident">stmt</span>.<span class="ident">execute_named</span>(<span class="kw-2">&amp;</span>[(<span class="string">&quot;:name&quot;</span>, <span class="kw-2">&amp;</span><span class="string">&quot;one&quot;</span>)])
+}</pre>
+<h1 id="failure-2" class="section-header"><a href="#failure-2">Failure</a></h1>
+<p>Will return <code>Err</code> if binding parameters fails, the executed statement returns rows (in
+which case <code>query</code> should be used instead), or the underling SQLite call fails.</p>
+</div><h4 id='method.insert' class="method"><span id='insert.v' class='invisible'><code>pub fn <a href='#method.insert' class='fnname'>insert</a>(&amp;mut self, params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a>&amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#122-128' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Execute an INSERT and return the ROWID.</p>
+<h1 id="note" class="section-header"><a href="#note">Note</a></h1>
+<p>This function is a convenience wrapper around <code>execute()</code> intended for queries that
+insert a single item. It is possible to misuse this function in a way that it cannot
+detect, such as by calling it on a statement which <em>updates</em> a single item rather than
+inserting one. Please don't do that.</p>
+<h1 id="failure-3" class="section-header"><a href="#failure-3">Failure</a></h1>
+<p>Will return <code>Err</code> if no row is inserted or many rows are inserted.</p>
+</div><h4 id='method.query' class="method"><span id='query.v' class='invisible'><code>pub fn <a href='#method.query' class='fnname'>query</a>&lt;'a&gt;(&amp;'a mut self, params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a>&amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="struct" href="../rusqlite/struct.Rows.html" title="struct rusqlite::Rows">Rows</a>&lt;'a&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#157-160' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Execute the prepared statement, returning a handle to the resulting rows.</p>
+<p>Due to lifetime restricts, the rows handle returned by <code>query</code> does not
+implement the <code>Iterator</code> trait. Consider using <code>query_map</code> or <code>query_and_then</code>
+instead, which do.</p>
+<h2 id="example-2" class="section-header"><a href="#example-2">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">fn</span> <span class="ident">get_names</span>(<span class="ident">conn</span>: <span class="kw-2">&amp;</span><span class="ident">Connection</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">conn</span>.<span class="ident">prepare</span>(<span class="string">&quot;SELECT name FROM people&quot;</span>));
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rows</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">stmt</span>.<span class="ident">query</span>(<span class="kw-2">&amp;</span>[]));
+
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">names</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+    <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">result_row</span>) <span class="op">=</span> <span class="ident">rows</span>.<span class="ident">next</span>() {
+        <span class="kw">let</span> <span class="ident">row</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">result_row</span>);
+        <span class="ident">names</span>.<span class="ident">push</span>(<span class="ident">row</span>.<span class="ident">get</span>(<span class="number">0</span>));
+    }
+
+    <span class="prelude-val">Ok</span>(<span class="ident">names</span>)
+}</pre>
+<h2 id="failure-4" class="section-header"><a href="#failure-4">Failure</a></h2>
+<p>Will return <code>Err</code> if binding parameters fails.</p>
+</div><h4 id='method.query_named' class="method"><span id='query_named.v' class='invisible'><code>pub fn <a href='#method.query_named' class='fnname'>query_named</a>&lt;'a&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;'a mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a>&amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>, &amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a><br>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="struct" href="../rusqlite/struct.Rows.html" title="struct rusqlite::Rows">Rows</a>&lt;'a&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#184-187' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Execute the prepared statement with named parameter(s), returning a handle for the
+resulting rows. If any parameters that were in the prepared statement are not included in
+<code>params</code>, they will continue to use the most-recently bound value from a previous call to
+<code>query_named</code>, or <code>NULL</code> if they have never been bound.</p>
+<h2 id="example-3" class="section-header"><a href="#example-3">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">fn</span> <span class="ident">query</span>(<span class="ident">conn</span>: <span class="kw-2">&amp;</span><span class="ident">Connection</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">conn</span>.<span class="ident">prepare</span>(<span class="string">&quot;SELECT * FROM test where name = :name&quot;</span>));
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rows</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">stmt</span>.<span class="ident">query_named</span>(<span class="kw-2">&amp;</span>[(<span class="string">&quot;:name&quot;</span>, <span class="kw-2">&amp;</span><span class="string">&quot;one&quot;</span>)]));
+    <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">row</span>) <span class="op">=</span> <span class="ident">rows</span>.<span class="ident">next</span>() {
+        <span class="comment">// ...</span>
+    }
+    <span class="prelude-val">Ok</span>(())
+}</pre>
+<h1 id="failure-5" class="section-header"><a href="#failure-5">Failure</a></h1>
+<p>Will return <code>Err</code> if binding parameters fails.</p>
+</div><h4 id='method.query_map' class="method"><span id='query_map.v' class='invisible'><code>pub fn <a href='#method.query_map' class='fnname'>query_map</a>&lt;'a, T, F&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;'a mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a>&amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;f: F<br>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="struct" href="../rusqlite/struct.MappedRows.html" title="struct rusqlite::MappedRows">MappedRows</a>&lt;'a, F&gt;&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;<a class="struct" href="../rusqlite/struct.Row.html" title="struct rusqlite::Row">Row</a>) -&gt; T,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#212-217' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Executes the prepared statement and maps a function over the resulting rows, returning
+an iterator over the mapped function results.</p>
+<h2 id="example-4" class="section-header"><a href="#example-4">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">fn</span> <span class="ident">get_names</span>(<span class="ident">conn</span>: <span class="kw-2">&amp;</span><span class="ident">Connection</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">conn</span>.<span class="ident">prepare</span>(<span class="string">&quot;SELECT name FROM people&quot;</span>));
+    <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">stmt</span>.<span class="ident">query_map</span>(<span class="kw-2">&amp;</span>[], <span class="op">|</span><span class="ident">row</span><span class="op">|</span> <span class="ident">row</span>.<span class="ident">get</span>(<span class="number">0</span>)));
+
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">names</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+    <span class="kw">for</span> <span class="ident">name_result</span> <span class="kw">in</span> <span class="ident">rows</span> {
+        <span class="ident">names</span>.<span class="ident">push</span>(<span class="macro">try</span><span class="macro">!</span>(<span class="ident">name_result</span>));
+    }
+
+    <span class="prelude-val">Ok</span>(<span class="ident">names</span>)
+}</pre>
+<h2 id="failure-6" class="section-header"><a href="#failure-6">Failure</a></h2>
+<p>Will return <code>Err</code> if binding parameters fails.</p>
+</div><h4 id='method.query_map_named' class="method"><span id='query_map_named.v' class='invisible'><code>pub fn <a href='#method.query_map_named' class='fnname'>query_map_named</a>&lt;'a, T, F&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;'a mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a>&amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>, &amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;f: F<br>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="struct" href="../rusqlite/struct.MappedRows.html" title="struct rusqlite::MappedRows">MappedRows</a>&lt;'a, F&gt;&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;<a class="struct" href="../rusqlite/struct.Row.html" title="struct rusqlite::Row">Row</a>) -&gt; T,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#245-253' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Execute the prepared statement with named parameter(s), returning an iterator over the
+result of calling the mapping function over the query's rows. If any parameters that were
+in the prepared statement are not included in <code>params</code>, they will continue to use the
+most-recently bound value from a previous call to <code>query_named</code>, or <code>NULL</code> if they have
+never been bound.</p>
+<h2 id="example-5" class="section-header"><a href="#example-5">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">fn</span> <span class="ident">get_names</span>(<span class="ident">conn</span>: <span class="kw-2">&amp;</span><span class="ident">Connection</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">conn</span>.<span class="ident">prepare</span>(<span class="string">&quot;SELECT name FROM people WHERE id = :id&quot;</span>));
+    <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">stmt</span>.<span class="ident">query_map_named</span>(<span class="kw-2">&amp;</span>[(<span class="string">&quot;:id&quot;</span>, <span class="kw-2">&amp;</span><span class="string">&quot;one&quot;</span>)], <span class="op">|</span><span class="ident">row</span><span class="op">|</span> <span class="ident">row</span>.<span class="ident">get</span>(<span class="number">0</span>)));
+
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">names</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+    <span class="kw">for</span> <span class="ident">name_result</span> <span class="kw">in</span> <span class="ident">rows</span> {
+        <span class="ident">names</span>.<span class="ident">push</span>(<span class="macro">try</span><span class="macro">!</span>(<span class="ident">name_result</span>));
+    }
+
+    <span class="prelude-val">Ok</span>(<span class="ident">names</span>)
+}</pre>
+<h2 id="failure-7" class="section-header"><a href="#failure-7">Failure</a></h2>
+<p>Will return <code>Err</code> if binding parameters fails.</p>
+</div><h4 id='method.query_and_then' class="method"><span id='query_and_then.v' class='invisible'><code>pub fn <a href='#method.query_and_then' class='fnname'>query_and_then</a>&lt;'a, T, E, F&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;'a mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a>&amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;f: F<br>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="struct" href="../rusqlite/struct.AndThenRows.html" title="struct rusqlite::AndThenRows">AndThenRows</a>&lt;'a, F&gt;&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;E: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="enum" href="../rusqlite/enum.Error.html" title="enum rusqlite::Error">Error</a>&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;<a class="struct" href="../rusqlite/struct.Row.html" title="struct rusqlite::Row">Row</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, E&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#262-271' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Executes the prepared statement and maps a function over the resulting
+rows, where the function returns a <code>Result</code> with <code>Error</code> type implementing
+<code>std::convert::From&lt;Error&gt;</code> (so errors can be unified).</p>
+<h1 id="failure-8" class="section-header"><a href="#failure-8">Failure</a></h1>
+<p>Will return <code>Err</code> if binding parameters fails.</p>
+</div><h4 id='method.query_and_then_named' class="method"><span id='query_and_then_named.v' class='invisible'><code>pub fn <a href='#method.query_and_then_named' class='fnname'>query_and_then_named</a>&lt;'a, T, E, F&gt;(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;'a mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a>&amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>, &amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;f: F<br>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="struct" href="../rusqlite/struct.AndThenRows.html" title="struct rusqlite::AndThenRows">AndThenRows</a>&lt;'a, F&gt;&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;E: <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="enum" href="../rusqlite/enum.Error.html" title="enum rusqlite::Error">Error</a>&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;<a class="struct" href="../rusqlite/struct.Row.html" title="struct rusqlite::Row">Row</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, E&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#308-317' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Execute the prepared statement with named parameter(s), returning an iterator over the
+result of calling the mapping function over the query's rows. If any parameters that were
+in the prepared statement are not included in <code>params</code>, they will continue to use the
+most-recently bound value from a previous call to <code>query_named</code>, or <code>NULL</code> if they have
+never been bound.</p>
+<h2 id="example-6" class="section-header"><a href="#example-6">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">struct</span> <span class="ident">Person</span> { <span class="ident">name</span>: <span class="ident">String</span> };
+
+<span class="kw">fn</span> <span class="ident">name_to_person</span>(<span class="ident">name</span>: <span class="ident">String</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Person</span><span class="op">&gt;</span> {
+    <span class="comment">// ... check for valid name</span>
+    <span class="prelude-val">Ok</span>(<span class="ident">Person</span>{ <span class="ident">name</span>: <span class="ident">name</span> })
+}
+
+<span class="kw">fn</span> <span class="ident">get_names</span>(<span class="ident">conn</span>: <span class="kw-2">&amp;</span><span class="ident">Connection</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Person</span><span class="op">&gt;&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stmt</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">conn</span>.<span class="ident">prepare</span>(<span class="string">&quot;SELECT name FROM people WHERE id = :id&quot;</span>));
+    <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="macro">try</span><span class="macro">!</span>(<span class="ident">stmt</span>.<span class="ident">query_and_then_named</span>(<span class="kw-2">&amp;</span>[(<span class="string">&quot;:id&quot;</span>, <span class="kw-2">&amp;</span><span class="string">&quot;one&quot;</span>)], <span class="op">|</span><span class="ident">row</span><span class="op">|</span> {
+        <span class="ident">name_to_person</span>(<span class="ident">row</span>.<span class="ident">get</span>(<span class="number">0</span>))
+    }));
+
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">persons</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+    <span class="kw">for</span> <span class="ident">person_result</span> <span class="kw">in</span> <span class="ident">rows</span> {
+        <span class="ident">persons</span>.<span class="ident">push</span>(<span class="macro">try</span><span class="macro">!</span>(<span class="ident">person_result</span>));
+    }
+
+    <span class="prelude-val">Ok</span>(<span class="ident">persons</span>)
+}</pre>
+<h2 id="failure-9" class="section-header"><a href="#failure-9">Failure</a></h2>
+<p>Will return <code>Err</code> if binding parameters fails.</p>
+</div><h4 id='method.exists' class="method"><span id='exists.v' class='invisible'><code>pub fn <a href='#method.exists' class='fnname'>exists</a>(&amp;mut self, params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a>&amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#321-330' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Return <code>true</code> if a query in the SQL statement it executes returns one or more rows
+and <code>false</code> if the SQL returns an empty set.</p>
+</div><h4 id='method.query_row' class="method"><span id='query_row.v' class='invisible'><code>pub fn <a href='#method.query_row' class='fnname'>query_row</a>&lt;T, F&gt;(&amp;mut self, params: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a>&amp;<a class="trait" href="../rusqlite/types/trait.ToSql.html" title="trait rusqlite::types::ToSql">ToSql</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>, f: F) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;T&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>(&amp;<a class="struct" href="../rusqlite/struct.Row.html" title="struct rusqlite::Row">Row</a>) -&gt; T,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#339-345' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Convenience method to execute a query that is expected to return a single row.</p>
+<p>If the query returns more than one row, all rows except the first are ignored.</p>
+<h1 id="failure-10" class="section-header"><a href="#failure-10">Failure</a></h1>
+<p>Will return <code>Err</code> if the underlying SQLite call fails.</p>
+</div><h4 id='method.finalize' class="method"><span id='finalize.v' class='invisible'><code>pub fn <a href='#method.finalize' class='fnname'>finalize</a>(self) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#355-357' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Consumes the statement.</p>
+<p>Functionally equivalent to the <code>Drop</code> implementation, but allows callers to see any errors
+that occur.</p>
+<h1 id="failure-11" class="section-header"><a href="#failure-11">Failure</a></h1>
+<p>Will return <code>Err</code> if the underlying SQLite call fails.</p>
+</div><h4 id='method.parameter_index' class="method"><span id='parameter_index.v' class='invisible'><code>pub fn <a href='#method.parameter_index' class='fnname'>parameter_index</a>(&amp;self, name: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>) -&gt; <a class="type" href="../rusqlite/type.Result.html" title="type rusqlite::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a>&gt;&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#365-368' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Return the index of an SQL parameter given its name.</p>
+<h1 id="failure-12" class="section-header"><a href="#failure-12">Failure</a></h1>
+<p>Will return Err if <code>name</code> is invalid. Will return Ok(None) if the name
+is valid but not a bound parameter of this statement.</p>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl&lt;'conn&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../rusqlite/struct.Statement.html" title="struct rusqlite::Statement">Statement</a>&lt;'conn&gt;</code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#479-488' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#480-487' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-Drop' class='impl'><span class='in-band'><code>impl&lt;'conn&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/drop/trait.Drop.html" title="trait core::ops::drop::Drop">Drop</a> for <a class="struct" href="../rusqlite/struct.Statement.html" title="struct rusqlite::Statement">Statement</a>&lt;'conn&gt;</code><a href='#impl-Drop' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#490-495' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.drop' class="method"><span id='drop.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/ops/drop/trait.Drop.html#tymethod.drop' class='fnname'>drop</a>(&amp;mut self)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/rusqlite/statement.rs.html#492-494' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Executes the destructor for this type. <a href="https://doc.rust-lang.org/nightly/core/ops/drop/trait.Drop.html#tymethod.drop">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "rusqlite";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

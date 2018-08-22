@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Arena` struct in crate `typed_arena`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Arena">
+
+    <title>typed_arena::Arena - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Arena</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.new">new</a><a href="#method.with_capacity">with_capacity</a><a href="#method.alloc">alloc</a><a href="#method.alloc_extend">alloc_extend</a><a href="#method.alloc_uninitialized">alloc_uninitialized</a><a href="#method.uninitialized_array">uninitialized_array</a><a href="#method.into_vec">into_vec</a></div></div><p class='location'><a href='index.html'>typed_arena</a></p><script>window.sidebarCurrent = {name: 'Arena', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>typed_arena</a>::<wbr><a class="struct" href=''>Arena</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/typed_arena/lib.rs.html#102-104' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Arena&lt;T&gt; { /* fields omitted */ }</pre><div class='docblock'><p>An arena of objects of type <code>T</code>.</p>
+<h2 id="example" class="section-header"><a href="#example">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">typed_arena</span>::<span class="ident">Arena</span>;
+
+<span class="kw">struct</span> <span class="ident">Monster</span> {
+    <span class="ident">level</span>: <span class="ident">u32</span>,
+}
+
+<span class="kw">let</span> <span class="ident">monsters</span> <span class="op">=</span> <span class="ident">Arena</span>::<span class="ident">new</span>();
+
+<span class="kw">let</span> <span class="ident">vegeta</span> <span class="op">=</span> <span class="ident">monsters</span>.<span class="ident">alloc</span>(<span class="ident">Monster</span> { <span class="ident">level</span>: <span class="number">9001</span> });
+<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">vegeta</span>.<span class="ident">level</span> <span class="op">&gt;</span> <span class="number">9000</span>);</pre>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;T&gt; <a class="struct" href="../typed_arena/struct.Arena.html" title="struct typed_arena::Arena">Arena</a>&lt;T&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/typed_arena/lib.rs.html#111-304' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class="method"><span id='new.v' class='invisible'><code>pub fn <a href='#method.new' class='fnname'>new</a>() -&gt; <a class="struct" href="../typed_arena/struct.Arena.html" title="struct typed_arena::Arena">Arena</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/typed_arena/lib.rs.html#122-125' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Construct a new arena.</p>
+<h2 id="example-1" class="section-header"><a href="#example-1">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">typed_arena</span>::<span class="ident">Arena</span>;
+
+<span class="kw">let</span> <span class="ident">arena</span> <span class="op">=</span> <span class="ident">Arena</span>::<span class="ident">new</span>();</pre>
+</div><h4 id='method.with_capacity' class="method"><span id='with_capacity.v' class='invisible'><code>pub fn <a href='#method.with_capacity' class='fnname'>with_capacity</a>(n: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>) -&gt; <a class="struct" href="../typed_arena/struct.Arena.html" title="struct typed_arena::Arena">Arena</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/typed_arena/lib.rs.html#137-145' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Construct a new arena with capacity for <code>n</code> values pre-allocated.</p>
+<h2 id="example-2" class="section-header"><a href="#example-2">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">typed_arena</span>::<span class="ident">Arena</span>;
+
+<span class="kw">let</span> <span class="ident">arena</span> <span class="op">=</span> <span class="ident">Arena</span>::<span class="ident">with_capacity</span>(<span class="number">1337</span>);</pre>
+</div><h4 id='method.alloc' class="method"><span id='alloc.v' class='invisible'><code>pub fn <a href='#method.alloc' class='fnname'>alloc</a>(&amp;self, value: T) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>T</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/typed_arena/lib.rs.html#159-161' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Allocates a value in the arena, and returns a mutable reference
+to that value.</p>
+<h2 id="example-3" class="section-header"><a href="#example-3">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">typed_arena</span>::<span class="ident">Arena</span>;
+
+<span class="kw">let</span> <span class="ident">arena</span> <span class="op">=</span> <span class="ident">Arena</span>::<span class="ident">new</span>();
+<span class="kw">let</span> <span class="ident">x</span> <span class="op">=</span> <span class="ident">arena</span>.<span class="ident">alloc</span>(<span class="number">42</span>);
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw-2">*</span><span class="ident">x</span>, <span class="number">42</span>);</pre>
+</div><h4 id='method.alloc_extend' class="method"><span id='alloc_extend.v' class='invisible'><code>pub fn <a href='#method.alloc_extend' class='fnname'>alloc_extend</a>&lt;I&gt;(&amp;self, iterable: I) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;mut [T]</a> <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html" title="trait core::iter::traits::IntoIterator">IntoIterator</a>&lt;Item = T&gt;,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/typed_arena/lib.rs.html#175-224' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Uses the contents of an iterator to allocate values in the arena.
+Returns a mutable slice that contains these values.</p>
+<h2 id="example-4" class="section-header"><a href="#example-4">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">typed_arena</span>::<span class="ident">Arena</span>;
+
+<span class="kw">let</span> <span class="ident">arena</span> <span class="op">=</span> <span class="ident">Arena</span>::<span class="ident">new</span>();
+<span class="kw">let</span> <span class="ident">abc</span> <span class="op">=</span> <span class="ident">arena</span>.<span class="ident">alloc_extend</span>(<span class="string">&quot;abcdefg&quot;</span>.<span class="ident">chars</span>().<span class="ident">take</span>(<span class="number">3</span>));
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">abc</span>, [<span class="string">&#39;a&#39;</span>, <span class="string">&#39;b&#39;</span>, <span class="string">&#39;c&#39;</span>]);</pre>
+</div><h4 id='method.alloc_uninitialized' class="method"><span id='alloc_uninitialized.v' class='invisible'><code>pub unsafe fn <a href='#method.alloc_uninitialized' class='fnname'>alloc_uninitialized</a>(&amp;self, num: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">[</a>T<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/typed_arena/lib.rs.html#245-257' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Allocates space for a given number of values, but doesn't initialize it.</p>
+<h2 id="unsafety-and-undefined-behavior" class="section-header"><a href="#unsafety-and-undefined-behavior">Unsafety and Undefined Behavior</a></h2>
+<p>The same caveats that apply to
+<a href="https://doc.rust-lang.org/nightly/std/mem/fn.uninitialized.html"><code>std::mem::uninitialized</code></a>
+apply here:</p>
+<blockquote>
+<p><strong>This is incredibly dangerous and should not be done lightly. Deeply
+consider initializing your memory with a default value instead.</strong></p>
+</blockquote>
+<p>In particular, it is easy to trigger undefined behavior by allocating
+uninitialized values, failing to properly initialize them, and then the
+<code>Arena</code> will attempt to drop them when it is dropped. Initializing an
+uninitialized value is trickier than it might seem: a normal assignment
+to a field will attempt to drop the old, uninitialized value, which
+almost certainly also triggers undefined behavior. You must also
+consider all the places where your code might &quot;unexpectedly&quot; drop values
+earlier than it &quot;should&quot; because of unwinding during panics.</p>
+</div><h4 id='method.uninitialized_array' class="method"><span id='uninitialized_array.v' class='invisible'><code>pub fn <a href='#method.uninitialized_array' class='fnname'>uninitialized_array</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">[</a>T<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/typed_arena/lib.rs.html#265-271' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns unused space.</p>
+<p><em>This unused space is still not considered &quot;allocated&quot;.</em> Therefore, it
+won't be dropped unless there are further calls to <code>alloc</code>,
+<code>alloc_uninitialized</code>, or <code>alloc_extend</code> which is why the method is
+safe.</p>
+</div><h4 id='method.into_vec' class="method"><span id='into_vec.v' class='invisible'><code>pub fn <a href='#method.into_vec' class='fnname'>into_vec</a>(self) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/typed_arena/lib.rs.html#293-303' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Convert this <code>Arena</code> into a <code>Vec&lt;T&gt;</code>.</p>
+<p>Items in the resulting <code>Vec&lt;T&gt;</code> appear in the order that they were
+allocated in.</p>
+<h2 id="example-5" class="section-header"><a href="#example-5">Example</a></h2>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">typed_arena</span>::<span class="ident">Arena</span>;
+
+<span class="kw">let</span> <span class="ident">arena</span> <span class="op">=</span> <span class="ident">Arena</span>::<span class="ident">new</span>();
+
+<span class="ident">arena</span>.<span class="ident">alloc</span>(<span class="string">&quot;a&quot;</span>);
+<span class="ident">arena</span>.<span class="ident">alloc</span>(<span class="string">&quot;b&quot;</span>);
+<span class="ident">arena</span>.<span class="ident">alloc</span>(<span class="string">&quot;c&quot;</span>);
+
+<span class="kw">let</span> <span class="ident">easy_as_123</span> <span class="op">=</span> <span class="ident">arena</span>.<span class="ident">into_vec</span>();
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">easy_as_123</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="string">&quot;a&quot;</span>, <span class="string">&quot;b&quot;</span>, <span class="string">&quot;c&quot;</span>]);</pre>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "typed_arena";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

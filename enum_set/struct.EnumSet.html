@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `EnumSet` struct in crate `enum_set`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, EnumSet">
+
+    <title>enum_set::EnumSet - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct EnumSet</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.new">new</a><a href="#method.len">len</a><a href="#method.is_empty">is_empty</a><a href="#method.clear">clear</a><a href="#method.is_disjoint">is_disjoint</a><a href="#method.is_superset">is_superset</a><a href="#method.is_subset">is_subset</a><a href="#method.union">union</a><a href="#method.intersection">intersection</a><a href="#method.difference">difference</a><a href="#method.symmetric_difference">symmetric_difference</a><a href="#method.insert">insert</a><a href="#method.remove">remove</a><a href="#method.contains">contains</a><a href="#method.iter">iter</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Copy">Copy</a><a href="#impl-Clone">Clone</a><a href="#impl-PartialEq">PartialEq</a><a href="#impl-Eq">Eq</a><a href="#impl-PartialOrd">PartialOrd</a><a href="#impl-Ord">Ord</a><a href="#impl-Debug">Debug</a><a href="#impl-Hash">Hash</a><a href="#impl-Sub">Sub</a><a href="#impl-BitOr">BitOr</a><a href="#impl-BitAnd">BitAnd</a><a href="#impl-BitXor">BitXor</a><a href="#impl-Default">Default</a><a href="#impl-FromIterator%3CE%3E">FromIterator&lt;E&gt;</a><a href="#impl-Extend%3CE%3E">Extend&lt;E&gt;</a><a href="#impl-IntoIterator">IntoIterator</a></div></div><p class='location'><a href='index.html'>enum_set</a></p><script>window.sidebarCurrent = {name: 'EnumSet', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>enum_set</a>::<wbr><a class="struct" href=''>EnumSet</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/enum_set/lib.rs.html#24-29' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct EnumSet&lt;E&gt; { /* fields omitted */ }</pre><div class='docblock'><p>A specialized set implementation to use enum types.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#84-173' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class="method"><span id='new.v' class='invisible'><code>pub fn <a href='#method.new' class='fnname'>new</a>() -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#86-88' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns an empty <code>EnumSet</code>.</p>
+</div><h4 id='method.len' class="method"><span id='len.v' class='invisible'><code>pub fn <a href='#method.len' class='fnname'>len</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#95-97' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the number of elements in the set.</p>
+</div><h4 id='method.is_empty' class="method"><span id='is_empty.v' class='invisible'><code>pub fn <a href='#method.is_empty' class='fnname'>is_empty</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#100-102' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Checks if the set is empty.</p>
+</div><h4 id='method.clear' class="method"><span id='clear.v' class='invisible'><code>pub fn <a href='#method.clear' class='fnname'>clear</a>(&amp;mut self)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#105-107' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Removes all elements from the set.</p>
+</div><h4 id='method.is_disjoint' class="method"><span id='is_disjoint.v' class='invisible'><code>pub fn <a href='#method.is_disjoint' class='fnname'>is_disjoint</a>(&amp;self, other: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#112-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns <code>true</code> if the set has no elements in common with <code>other</code>.</p>
+<p>This is equivalent to checking for an empty intersection.</p>
+</div><h4 id='method.is_superset' class="method"><span id='is_superset.v' class='invisible'><code>pub fn <a href='#method.is_superset' class='fnname'>is_superset</a>(&amp;self, other: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#117-119' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns <code>true</code> if the set is a superset of <code>other</code>.</p>
+</div><h4 id='method.is_subset' class="method"><span id='is_subset.v' class='invisible'><code>pub fn <a href='#method.is_subset' class='fnname'>is_subset</a>(&amp;self, other: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#122-124' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns <code>true</code> if the set is a subset of <code>other</code>.</p>
+</div><h4 id='method.union' class="method"><span id='union.v' class='invisible'><code>pub fn <a href='#method.union' class='fnname'>union</a>(&amp;self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#127-129' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the union of the set and <code>other</code>.</p>
+</div><h4 id='method.intersection' class="method"><span id='intersection.v' class='invisible'><code>pub fn <a href='#method.intersection' class='fnname'>intersection</a>(&amp;self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#132-134' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the intersection of the set and <code>other</code>.</p>
+</div><h4 id='method.difference' class="method"><span id='difference.v' class='invisible'><code>pub fn <a href='#method.difference' class='fnname'>difference</a>(&amp;self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#137-139' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the difference between the set and <code>other</code>.</p>
+</div><h4 id='method.symmetric_difference' class="method"><span id='symmetric_difference.v' class='invisible'><code>pub fn <a href='#method.symmetric_difference' class='fnname'>symmetric_difference</a>(&amp;self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#142-144' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the symmetric difference between the set and <code>other</code>.</p>
+</div><h4 id='method.insert' class="method"><span id='insert.v' class='invisible'><code>pub fn <a href='#method.insert' class='fnname'>insert</a>(&amp;mut self, value: E) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#149-153' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Adds the given value to the set.</p>
+<p>Returns <code>true</code> if the value was not already present in the set.</p>
+</div><h4 id='method.remove' class="method"><span id='remove.v' class='invisible'><code>pub fn <a href='#method.remove' class='fnname'>remove</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>E) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#158-162' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Removes a value from the set.</p>
+<p>Returns <code>true</code> if the value was present in the set.</p>
+</div><h4 id='method.contains' class="method"><span id='contains.v' class='invisible'><code>pub fn <a href='#method.contains' class='fnname'>contains</a>(&amp;self, value: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>E) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#165-167' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns <code>true</code> if the set contains the given value.</p>
+</div><h4 id='method.iter' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="struct" href="../enum_set/struct.Iter.html" title="struct enum_set::Iter">Iter</a>&lt;E&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="struct" href="../enum_set/struct.Iter.html" title="struct enum_set::Iter">Iter</a>&lt;E&gt;</h3><code class="content"><span class="where fmt-newline">impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="struct" href="../enum_set/struct.Iter.html" title="struct enum_set::Iter">Iter</a>&lt;E&gt;</span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = E;</span></code></div></div><span id='iter.v' class='invisible'><code>pub fn <a href='#method.iter' class='fnname'>iter</a>(&amp;self) -&gt; <a class="struct" href="../enum_set/struct.Iter.html" title="struct enum_set::Iter">Iter</a>&lt;E&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#170-172' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns an iterator over the set's elements.</p>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Copy' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Copy.html" title="trait core::marker::Copy">Copy</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Copy.html" title="trait core::marker::Copy">Copy</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-Copy' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div><h3 id='impl-Clone' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-Clone' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#112-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 id='impl-PartialEq' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html" title="trait core::cmp::PartialEq">PartialEq</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html" title="trait core::cmp::PartialEq">PartialEq</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-PartialEq' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.eq' class="method"><span id='eq.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq' class='fnname'>eq</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq">Read more</a></p>
+</div><h4 id='method.ne' class="method"><span id='ne.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne' class='fnname'>ne</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>!=</code>.</p>
+</div></div><h3 id='impl-Eq' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html" title="trait core::cmp::Eq">Eq</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html" title="trait core::cmp::Eq">Eq</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-Eq' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div><h3 id='impl-PartialOrd' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html" title="trait core::cmp::PartialOrd">PartialOrd</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html" title="trait core::cmp::PartialOrd">PartialOrd</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-PartialOrd' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.partial_cmp' class="method"><span id='partial_cmp.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#tymethod.partial_cmp' class='fnname'>partial_cmp</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/cmp/enum.Ordering.html" title="enum core::cmp::Ordering">Ordering</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method returns an ordering between <code>self</code> and <code>other</code> values if one exists. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#tymethod.partial_cmp">Read more</a></p>
+</div><h4 id='method.lt' class="method"><span id='lt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.lt' class='fnname'>lt</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests less than (for <code>self</code> and <code>other</code>) and is used by the <code>&lt;</code> operator. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.lt">Read more</a></p>
+</div><h4 id='method.le' class="method"><span id='le.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.le' class='fnname'>le</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests less than or equal to (for <code>self</code> and <code>other</code>) and is used by the <code>&lt;=</code> operator. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.le">Read more</a></p>
+</div><h4 id='method.gt' class="method"><span id='gt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.gt' class='fnname'>gt</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests greater than (for <code>self</code> and <code>other</code>) and is used by the <code>&gt;</code> operator. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.gt">Read more</a></p>
+</div><h4 id='method.ge' class="method"><span id='ge.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.ge' class='fnname'>ge</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests greater than or equal to (for <code>self</code> and <code>other</code>) and is used by the <code>&gt;=</code> operator. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialOrd.html#method.ge">Read more</a></p>
+</div></div><h3 id='impl-Ord' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html" title="trait core::cmp::Ord">Ord</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html" title="trait core::cmp::Ord">Ord</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-Ord' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.cmp' class="method"><span id='cmp.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#tymethod.cmp' class='fnname'>cmp</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/cmp/enum.Ordering.html" title="enum core::cmp::Ordering">Ordering</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#22' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method returns an <code>Ordering</code> between <code>self</code> and <code>other</code>. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#tymethod.cmp">Read more</a></p>
+</div><h4 id='method.max' class="method"><span id='max.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#method.max' class='fnname'>max</a>(self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.21.0'>1.21.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/cmp.rs.html#460-463' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Compares and returns the maximum of two values. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#method.max">Read more</a></p>
+</div><h4 id='method.min' class="method"><span id='min.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#method.min' class='fnname'>min</a>(self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.21.0'>1.21.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/cmp.rs.html#476-479' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Compares and returns the minimum of two values. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html#method.min">Read more</a></p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#31-35' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, fmt: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#32-34' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-Hash' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html" title="trait core::hash::Hash">Hash</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-Hash' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#37-41' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.hash' class="method"><span id='hash.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#tymethod.hash' class='fnname'>hash</a>&lt;H:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hasher.html" title="trait core::hash::Hasher">Hasher</a>&gt;(&amp;self, state: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>H)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#38-40' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Feeds this value into the given [<code>Hasher</code>]. <a href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#tymethod.hash">Read more</a></p>
+</div><h4 id='method.hash_slice' class="method"><span id='hash_slice.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#method.hash_slice' class='fnname'>hash_slice</a>&lt;H&gt;(data: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[Self]</a>, state: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>H) <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;H: <a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hasher.html" title="trait core::hash::Hasher">Hasher</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.3.0'>1.3.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/hash/mod.rs.html#202-208' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Feeds a slice of this type into the given [<code>Hasher</code>]. <a href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#method.hash_slice">Read more</a></p>
+</div></div><h3 id='impl-Sub' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/arith/trait.Sub.html" title="trait core::ops::arith::Sub">Sub</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-Sub' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#175-181' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='associatedtype.Output' class="type"><span id='Output.t' class='invisible'><code>type <a href='https://doc.rust-lang.org/nightly/core/ops/arith/trait.Sub.html#associatedtype.Output' class="type">Output</a> = Self</code></span></h4>
+<div class='docblock'><p>The resulting type after applying the <code>-</code> operator.</p>
+</div><h4 id='method.sub' class="method"><span id='sub.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/ops/arith/trait.Sub.html#tymethod.sub' class='fnname'>sub</a>(self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#178-180' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the <code>-</code> operation.</p>
+</div></div><h3 id='impl-BitOr' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/bit/trait.BitOr.html" title="trait core::ops::bit::BitOr">BitOr</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-BitOr' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#183-189' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='associatedtype.Output-1' class="type"><span id='Output.t-1' class='invisible'><code>type <a href='https://doc.rust-lang.org/nightly/core/ops/bit/trait.BitOr.html#associatedtype.Output' class="type">Output</a> = Self</code></span></h4>
+<div class='docblock'><p>The resulting type after applying the <code>|</code> operator.</p>
+</div><h4 id='method.bitor' class="method"><span id='bitor.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/ops/bit/trait.BitOr.html#tymethod.bitor' class='fnname'>bitor</a>(self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#186-188' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the <code>|</code> operation.</p>
+</div></div><h3 id='impl-BitAnd' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/bit/trait.BitAnd.html" title="trait core::ops::bit::BitAnd">BitAnd</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-BitAnd' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#191-197' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='associatedtype.Output-2' class="type"><span id='Output.t-2' class='invisible'><code>type <a href='https://doc.rust-lang.org/nightly/core/ops/bit/trait.BitAnd.html#associatedtype.Output' class="type">Output</a> = Self</code></span></h4>
+<div class='docblock'><p>The resulting type after applying the <code>&amp;</code> operator.</p>
+</div><h4 id='method.bitand' class="method"><span id='bitand.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/ops/bit/trait.BitAnd.html#tymethod.bitand' class='fnname'>bitand</a>(self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#194-196' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the <code>&amp;</code> operation.</p>
+</div></div><h3 id='impl-BitXor' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/bit/trait.BitXor.html" title="trait core::ops::bit::BitXor">BitXor</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-BitXor' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#199-205' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='associatedtype.Output-3' class="type"><span id='Output.t-3' class='invisible'><code>type <a href='https://doc.rust-lang.org/nightly/core/ops/bit/trait.BitXor.html#associatedtype.Output' class="type">Output</a> = Self</code></span></h4>
+<div class='docblock'><p>The resulting type after applying the <code>^</code> operator.</p>
+</div><h4 id='method.bitxor' class="method"><span id='bitxor.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/ops/bit/trait.BitXor.html#tymethod.bitxor' class='fnname'>bitxor</a>(self, other: Self) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#202-204' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the <code>^</code> operation.</p>
+</div></div><h3 id='impl-Default' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/default/trait.Default.html" title="trait core::default::Default">Default</a> for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-Default' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#244-248' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.default' class="method"><span id='default.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default' class='fnname'>default</a>() -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#245-247' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the &quot;default value&quot; for a type. <a href="https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default">Read more</a></p>
+</div></div><h3 id='impl-FromIterator%3CE%3E' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.FromIterator.html" title="trait core::iter::traits::FromIterator">FromIterator</a>&lt;E&gt; for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-FromIterator%3CE%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#250-256' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from_iter' class="method"><span id='from_iter.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/iter/traits/trait.FromIterator.html#tymethod.from_iter' class='fnname'>from_iter</a>&lt;I:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html" title="trait core::iter::traits::IntoIterator">IntoIterator</a>&lt;Item = E&gt;&gt;(iterator: I) -&gt; Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#251-255' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Creates a value from an iterator. <a href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.FromIterator.html#tymethod.from_iter">Read more</a></p>
+</div></div><h3 id='impl-Extend%3CE%3E' class='impl'><span class='in-band'><code>impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.Extend.html" title="trait core::iter::traits::Extend">Extend</a>&lt;E&gt; for <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-Extend%3CE%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#258-264' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.extend' class="method"><span id='extend.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/iter/traits/trait.Extend.html#tymethod.extend' class='fnname'>extend</a>&lt;I:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html" title="trait core::iter::traits::IntoIterator">IntoIterator</a>&lt;Item = E&gt;&gt;(&amp;mut self, iter: I)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#259-263' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Extends a collection with the contents of an iterator. <a href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.Extend.html#tymethod.extend">Read more</a></p>
+</div></div><h3 id='impl-IntoIterator' class='impl'><span class='in-band'><code>impl&lt;'a, E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html" title="trait core::iter::traits::IntoIterator">IntoIterator</a> for &amp;'a <a class="struct" href="../enum_set/struct.EnumSet.html" title="struct enum_set::EnumSet">EnumSet</a>&lt;E&gt;</code><a href='#impl-IntoIterator' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#266-270' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='associatedtype.Item' class="type"><span id='Item.t' class='invisible'><code>type <a href='https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html#associatedtype.Item' class="type">Item</a> = E</code></span></h4>
+<div class='docblock'><p>The type of the elements being iterated over.</p>
+</div><h4 id='associatedtype.IntoIter' class="type"><span id='IntoIter.t' class='invisible'><code>type <a href='https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html#associatedtype.IntoIter' class="type">IntoIter</a> = <a class="struct" href="../enum_set/struct.Iter.html" title="struct enum_set::Iter">Iter</a>&lt;E&gt;</code></span></h4>
+<div class='docblock'><p>Which kind of iterator are we turning this into?</p>
+</div><h4 id='method.into_iter' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="struct" href="../enum_set/struct.Iter.html" title="struct enum_set::Iter">Iter</a>&lt;E&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="struct" href="../enum_set/struct.Iter.html" title="struct enum_set::Iter">Iter</a>&lt;E&gt;</h3><code class="content"><span class="where fmt-newline">impl&lt;E:&nbsp;<a class="trait" href="../enum_set/trait.CLike.html" title="trait enum_set::CLike">CLike</a>&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="struct" href="../enum_set/struct.Iter.html" title="struct enum_set::Iter">Iter</a>&lt;E&gt;</span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = E;</span></code></div></div><span id='into_iter.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html#tymethod.into_iter' class='fnname'>into_iter</a>(self) -&gt; <a class="struct" href="../enum_set/struct.Iter.html" title="struct enum_set::Iter">Iter</a>&lt;E&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/enum_set/lib.rs.html#269' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Creates an iterator from a value. <a href="https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html#tymethod.into_iter">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "enum_set";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

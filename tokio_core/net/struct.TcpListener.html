@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `TcpListener` struct in crate `tokio_core`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, TcpListener">
+
+    <title>tokio_core::net::TcpListener - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct TcpListener</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.bind">bind</a><a href="#method.bind2">bind2</a><a href="#method.accept">accept</a><a href="#method.accept_std">accept_std</a><a href="#method.from_listener">from_listener</a><a href="#method.poll_read">poll_read</a><a href="#method.local_addr">local_addr</a><a href="#method.incoming">incoming</a><a href="#method.set_ttl">set_ttl</a><a href="#method.ttl">ttl</a><a href="#method.set_only_v6">set_only_v6</a><a href="#method.only_v6">only_v6</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-AsRawFd">AsRawFd</a><a href="#impl-Debug">Debug</a></div></div><p class='location'><a href='../index.html'>tokio_core</a>::<wbr><a href='index.html'>net</a></p><script>window.sidebarCurrent = {name: 'TcpListener', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>tokio_core</a>::<wbr><a href='index.html'>net</a>::<wbr><a class="struct" href=''>TcpListener</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#20-22' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct TcpListener { /* fields omitted */ }</pre><div class='docblock'><p>An I/O object representing a TCP socket listening for incoming connections.</p>
+<p>This object can be converted into a stream of incoming connections for
+various forms of processing.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl <a class="struct" href="../../tokio_core/net/struct.TcpListener.html" title="struct tokio_core::net::TcpListener">TcpListener</a></code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#31-211' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.bind' class="method"><span id='bind.v' class='invisible'><code>pub fn <a href='#method.bind' class='fnname'>bind</a>(addr: &amp;<a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a>, handle: &amp;<a class="struct" href="../../tokio_core/reactor/struct.Handle.html" title="struct tokio_core::reactor::Handle">Handle</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="struct" href="../../tokio_core/net/struct.TcpListener.html" title="struct tokio_core::net::TcpListener">TcpListener</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#36-39' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Create a new TCP listener associated with this event loop.</p>
+<p>The TCP listener will bind to the provided <code>addr</code> address, if available.
+If the result is <code>Ok</code>, the socket has successfully bound.</p>
+</div><h4 id='method.bind2' class="method"><span id='bind2.v' class='invisible'><code>pub fn <a href='#method.bind2' class='fnname'>bind2</a>(addr: &amp;<a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="struct" href="../../tokio_core/net/struct.TcpListener.html" title="struct tokio_core::net::TcpListener">TcpListener</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#45-48' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Create a new TCP listener associated with this event loop.</p>
+<p>This is the same as <code>bind</code> but uses the default reactor instead of an
+explicit <code>&amp;Handle</code>.</p>
+</div><h4 id='method.accept' class="method"><span id='accept.v' class='invisible'><code>pub fn <a href='#method.accept' class='fnname'>accept</a>(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="struct" href="../../tokio_core/net/struct.TcpStream.html" title="struct tokio_core::net::TcpStream">TcpStream</a>, <a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#68-76' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Attempt to accept a connection and create a new connected <code>TcpStream</code> if
+successful.</p>
+<p>This function will attempt an accept operation, but will not block
+waiting for it to complete. If the operation would block then a &quot;would
+block&quot; error is returned. Additionally, if this method would block, it
+registers the current task to receive a notification when it would
+otherwise not block.</p>
+<p>Note that typically for simple usage it's easier to treat incoming
+connections as a <code>Stream</code> of <code>TcpStream</code>s with the <code>incoming</code> method
+below.</p>
+<h1 id="panics" class="section-header"><a href="#panics">Panics</a></h1>
+<p>This function will panic if it is called outside the context of a
+future's task. It's recommended to only call this from the
+implementation of a <code>Future::poll</code>, if necessary.</p>
+</div><h4 id='method.accept_std' class="method"><span id='accept_std.v' class='invisible'><code>pub fn <a href='#method.accept_std' class='fnname'>accept_std</a>(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="struct" href="https://doc.rust-lang.org/nightly/std/net/tcp/struct.TcpStream.html" title="struct std::net::tcp::TcpStream">TcpStream</a>, <a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#82-96' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Like <code>accept</code>, except that it returns a raw <code>std::net::TcpStream</code>.</p>
+<p>The stream is <em>in blocking mode</em>, and is not associated with the Tokio
+event loop.</p>
+</div><h4 id='method.from_listener' class="method"><span id='from_listener.v' class='invisible'><code>pub fn <a href='#method.from_listener' class='fnname'>from_listener</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;listener: <a class="struct" href="https://doc.rust-lang.org/nightly/std/net/tcp/struct.TcpListener.html" title="struct std::net::tcp::TcpListener">TcpListener</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;_addr: &amp;<a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;handle: &amp;<a class="struct" href="../../tokio_core/reactor/struct.Handle.html" title="struct tokio_core::reactor::Handle">Handle</a><br>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="struct" href="../../tokio_core/net/struct.TcpListener.html" title="struct tokio_core::net::TcpListener">TcpListener</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#125-130' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Create a new TCP listener from the standard library's TCP listener.</p>
+<p>This method can be used when the <code>Handle::tcp_listen</code> method isn't
+sufficient because perhaps some more configuration is needed in terms of
+before the calls to <code>bind</code> and <code>listen</code>.</p>
+<p>This API is typically paired with the <code>net2</code> crate and the <code>TcpBuilder</code>
+type to build up and customize a listener before it's shipped off to the
+backing event loop. This allows configuration of options like
+<code>SO_REUSEPORT</code>, binding to multiple addresses, etc.</p>
+<p>The <code>addr</code> argument here is one of the addresses that <code>listener</code> is
+bound to and the listener will only be guaranteed to accept connections
+of the same address type currently.</p>
+<p>Finally, the <code>handle</code> argument is the event loop that this listener will
+be bound to.</p>
+<p>The platform specific behavior of this function looks like:</p>
+<ul>
+<li>
+<p>On Unix, the socket is placed into nonblocking mode and connections
+can be accepted as normal</p>
+</li>
+<li>
+<p>On Windows, the address is stored internally and all future accepts
+will only be for the same IP version as <code>addr</code> specified. That is, if
+<code>addr</code> is an IPv4 address then all sockets accepted will be IPv4 as
+well (same for IPv6).</p>
+</li>
+</ul>
+</div><h4 id='method.poll_read' class="method"><span id='poll_read.v' class='invisible'><code>pub fn <a href='#method.poll_read' class='fnname'>poll_read</a>(&amp;self) -&gt; <a class="enum" href="../../futures/poll/enum.Async.html" title="enum futures::poll::Async">Async</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#145-155' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Test whether this socket is ready to be read or not.</p>
+</div><h4 id='method.local_addr' class="method"><span id='local_addr.v' class='invisible'><code>pub fn <a href='#method.local_addr' class='fnname'>local_addr</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/std/net/addr/enum.SocketAddr.html" title="enum std::net::addr::SocketAddr">SocketAddr</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#161-163' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the local address that this listener is bound to.</p>
+<p>This can be useful, for example, when binding to port 0 to figure out
+which port was actually bound.</p>
+</div><h4 id='method.incoming' class="method"><span id='incoming.v' class='invisible'><code>pub fn <a href='#method.incoming' class='fnname'>incoming</a>(self) -&gt; <a class="struct" href="../../tokio_core/net/struct.Incoming.html" title="struct tokio_core::net::Incoming">Incoming</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#170-172' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Consumes this listener, returning a stream of the sockets this listener
+accepts.</p>
+<p>This method returns an implementation of the <code>Stream</code> trait which
+resolves to the sockets the are accepted on this listener.</p>
+</div><h4 id='method.set_ttl' class="method"><span id='set_ttl.v' class='invisible'><code>pub fn <a href='#method.set_ttl' class='fnname'>set_ttl</a>(&amp;self, ttl: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#178-180' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sets the value for the <code>IP_TTL</code> option on this socket.</p>
+<p>This value sets the time-to-live field that is used in every packet sent
+from this socket.</p>
+</div><h4 id='method.ttl' class="method"><span id='ttl.v' class='invisible'><code>pub fn <a href='#method.ttl' class='fnname'>ttl</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#187-189' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Gets the value of the <code>IP_TTL</code> option for this socket.</p>
+<p>For more information about this option, see <a href="#method.set_ttl"><code>set_ttl</code></a>.</p>
+</div><h4 id='method.set_only_v6' class="method"><span id='set_only_v6.v' class='invisible'><code>pub fn <a href='#method.set_only_v6' class='fnname'>set_only_v6</a>(&amp;self, only_v6: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#199-201' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Sets the value for the <code>IPV6_V6ONLY</code> option on this socket.</p>
+<p>If this is set to <code>true</code> then the socket is restricted to sending and
+receiving IPv6 packets only. In this case two IPv4 and IPv6 applications
+can bind the same port at the same time.</p>
+<p>If this is set to <code>false</code> then the socket can be used to send and
+receive packets from an IPv4-mapped IPv6 address.</p>
+</div><h4 id='method.only_v6' class="method"><span id='only_v6.v' class='invisible'><code>pub fn <a href='#method.only_v6' class='fnname'>only_v6</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#208-210' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Gets the value of the <code>IPV6_V6ONLY</code> option for this socket.</p>
+<p>For more information about this option, see <a href="#method.set_only_v6"><code>set_only_v6</code></a>.</p>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-AsRawFd' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/std/sys/unix/ext/io/trait.AsRawFd.html" title="trait std::sys::unix::ext::io::AsRawFd">AsRawFd</a> for <a class="struct" href="../../tokio_core/net/struct.TcpListener.html" title="struct tokio_core::net::TcpListener">TcpListener</a></code><a href='#impl-AsRawFd' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#805-809' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.as_raw_fd' class="method"><span id='as_raw_fd.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/std/sys/unix/ext/io/trait.AsRawFd.html#tymethod.as_raw_fd' class='fnname'>as_raw_fd</a>(&amp;self) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/std/sys/unix/ext/io/type.RawFd.html" title="type std::sys::unix::ext::io::RawFd">RawFd</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#806-808' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Extracts the raw file descriptor. <a href="https://doc.rust-lang.org/nightly/std/sys/unix/ext/io/trait.AsRawFd.html#tymethod.as_raw_fd">Read more</a></p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../../tokio_core/net/struct.TcpListener.html" title="struct tokio_core::net::TcpListener">TcpListener</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#213-217' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/tokio_core/net/tcp.rs.html#214-216' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio_core";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

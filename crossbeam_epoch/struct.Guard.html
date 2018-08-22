@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Guard` struct in crate `crossbeam_epoch`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Guard">
+
+    <title>crossbeam_epoch::Guard - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Guard</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.defer">defer</a><a href="#method.flush">flush</a><a href="#method.repin">repin</a><a href="#method.repin_after">repin_after</a><a href="#method.collector">collector</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Drop">Drop</a><a href="#impl-Clone">Clone</a><a href="#impl-Debug">Debug</a></div></div><p class='location'><a href='index.html'>crossbeam_epoch</a></p><script>window.sidebarCurrent = {name: 'Guard', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>crossbeam_epoch</a>::<wbr><a class="struct" href=''>Guard</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#77-79' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Guard { /* fields omitted */ }</pre><div class='docblock'><p>A guard that keeps the current thread pinned.</p>
+<h1 id="pinning" class="section-header"><a href="#pinning">Pinning</a></h1>
+<p>The current thread is pinned by calling <a href="fn.pin.html"><code>pin</code></a>, which returns a new guard:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span> <span class="kw">as</span> <span class="ident">epoch</span>;
+
+<span class="comment">// It is often convenient to prefix a call to `pin` with a `&amp;` in order to create a reference.</span>
+<span class="comment">// This is not really necessary, but makes passing references to the guard a bit easier.</span>
+<span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">epoch</span>::<span class="ident">pin</span>();</pre>
+<p>When a guard gets dropped, the current thread is automatically unpinned.</p>
+<h1 id="pointers-on-the-stack" class="section-header"><a href="#pointers-on-the-stack">Pointers on the stack</a></h1>
+<p>Having a guard allows us to create pointers on the stack to heap-allocated objects.
+For example:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">epoch</span>, <span class="ident">Atomic</span>, <span class="ident">Owned</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>;
+
+<span class="comment">// Create a heap-allocated number.</span>
+<span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">Atomic</span>::<span class="ident">new</span>(<span class="number">777</span>);
+
+<span class="comment">// Pin the current thread.</span>
+<span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">epoch</span>::<span class="ident">pin</span>();
+
+<span class="comment">// Load the heap-allocated object and create pointer `p` on the stack.</span>
+<span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">load</span>(<span class="ident">SeqCst</span>, <span class="ident">guard</span>);
+
+<span class="comment">// Dereference the pointer and print the value:</span>
+<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">num</span>) <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">p</span>.<span class="ident">as_ref</span>() } {
+    <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;The number is {}.&quot;</span>, <span class="ident">num</span>);
+}</pre>
+<h1 id="multiple-guards" class="section-header"><a href="#multiple-guards">Multiple guards</a></h1>
+<p>Pinning is reentrant and it is perfectly legal to create multiple guards. In that case, the
+thread will actually be pinned only when the first guard is created and unpinned when the last
+one is dropped:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span> <span class="kw">as</span> <span class="ident">epoch</span>;
+
+<span class="kw">let</span> <span class="ident">guard1</span> <span class="op">=</span> <span class="ident">epoch</span>::<span class="ident">pin</span>();
+<span class="kw">let</span> <span class="ident">guard2</span> <span class="op">=</span> <span class="ident">epoch</span>::<span class="ident">pin</span>();
+<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">epoch</span>::<span class="ident">is_pinned</span>());
+<span class="ident">drop</span>(<span class="ident">guard1</span>);
+<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">epoch</span>::<span class="ident">is_pinned</span>());
+<span class="ident">drop</span>(<span class="ident">guard2</span>);
+<span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">epoch</span>::<span class="ident">is_pinned</span>());</pre>
+<p>The same can be achieved by cloning guards:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span> <span class="kw">as</span> <span class="ident">epoch</span>;
+
+<span class="kw">let</span> <span class="ident">guard1</span> <span class="op">=</span> <span class="ident">epoch</span>::<span class="ident">pin</span>();
+<span class="kw">let</span> <span class="ident">guard2</span> <span class="op">=</span> <span class="ident">guard1</span>.<span class="ident">clone</span>();</pre>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl <a class="struct" href="../crossbeam_epoch/struct.Guard.html" title="struct crossbeam_epoch::Guard">Guard</a></code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#81-322' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.defer' class="method"><span id='defer.v' class='invisible'><code>pub unsafe fn <a href='#method.defer' class='fnname'>defer</a>&lt;F, R&gt;(&amp;self, f: F) <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>() -&gt; R,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#171-178' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Stores a function so that it can be executed at some point after all currently pinned
+threads get unpinned.</p>
+<p>This method first stores <code>f</code> into the thread-local (or handle-local) cache. If this cache
+becomes full, some functions are moved into the global cache. At the same time, some
+functions from both local and global caches may get executed in order to incrementally
+clean up the caches as they fill up.</p>
+<p>There is no guarantee when exactly <code>f</code> will be executed. The only guarantee is that won't
+until all currently pinned threads get unpinned. In theory, <code>f</code> might never be deallocated,
+but the epoch-based garbage collection will make an effort to execute it reasonably soon.</p>
+<p>If this method is called from an <a href="fn.unprotected.html"><code>unprotected</code></a> guard, the function will simply be
+executed immediately.</p>
+<h1 id="safety" class="section-header"><a href="#safety">Safety</a></h1>
+<p>The given function must not hold reference onto the stack. It is highly recommended that
+the passed function is <strong>always</strong> marked with <code>move</code> in order to prevent accidental
+borrows.</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span> <span class="kw">as</span> <span class="ident">epoch</span>;
+
+<span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">epoch</span>::<span class="ident">pin</span>();
+<span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="string">&quot;Hello!&quot;</span>;
+<span class="kw">unsafe</span> {
+    <span class="comment">// ALWAYS use `move` when sending a closure into `defef`.</span>
+    <span class="ident">guard</span>.<span class="ident">defer</span>(<span class="kw">move</span> <span class="op">||</span> {
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">message</span>);
+    });
+}</pre>
+<p>Apart from that, keep in mind that another thread may execute <code>f</code>, so anything accessed by
+the closure must be <code>Send</code>.</p>
+<p>We intentionally didn't require <code>F: Send</code>, because Rust's type systems usually cannot prove
+<code>F: Send</code> for typical use cases. For example, consider the following code snippet, which
+exemplifies the typical use case of deferring the deallocation of a shared reference:</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><pre class="rust rust-example-rendered ignore">
+<span class="kw">let</span> <span class="ident">shared</span> <span class="op">=</span> <span class="ident">Owned</span>::<span class="ident">new</span>(<span class="number">7i32</span>).<span class="ident">into_shared</span>(<span class="ident">guard</span>);
+<span class="ident">guard</span>.<span class="ident">defer</span>(<span class="ident">Deferred</span>::<span class="ident">new</span>(<span class="kw">move</span> <span class="op">||</span> <span class="ident">shared</span>.<span class="ident">into_owned</span>())); <span class="comment">// `Shared` is not `Send`!</span></pre>
+<p>While <code>Shared</code> is not <code>Send</code>, it's safe for another thread to call the deferred function,
+because it's called only after the grace period and <code>shared</code> is no longer shared with other
+threads. But we don't expect type systems to prove this.</p>
+<h1 id="examples" class="section-header"><a href="#examples">Examples</a></h1>
+<p>When a heap-allocated object in a data structure becomes unreachable, it has to be
+deallocated. However, the current thread and other threads may be still holding references
+on the stack to that same object. Therefore it cannot be deallocated before those references
+get dropped. This method can defer deallocation until all those threads get unpinned and
+consequently drop all their references on the stack.</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">epoch</span>, <span class="ident">Atomic</span>, <span class="ident">Owned</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>;
+
+<span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">Atomic</span>::<span class="ident">new</span>(<span class="string">&quot;foo&quot;</span>);
+
+<span class="comment">// Now suppose that `a` is shared among multiple threads and concurrently</span>
+<span class="comment">// accessed and modified...</span>
+
+<span class="comment">// Pin the current thread.</span>
+<span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">epoch</span>::<span class="ident">pin</span>();
+
+<span class="comment">// Steal the object currently stored in `a` and swap it with another one.</span>
+<span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">swap</span>(<span class="ident">Owned</span>::<span class="ident">new</span>(<span class="string">&quot;bar&quot;</span>).<span class="ident">into_shared</span>(<span class="ident">guard</span>), <span class="ident">SeqCst</span>, <span class="ident">guard</span>);
+
+<span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">is_null</span>() {
+    <span class="comment">// The object `p` is pointing to is now unreachable.</span>
+    <span class="comment">// Defer its deallocation until all currently pinned threads get unpinned.</span>
+    <span class="kw">unsafe</span> {
+        <span class="comment">// ALWAYS use `move` when sending a closure into `defer`.</span>
+        <span class="ident">guard</span>.<span class="ident">defer</span>(<span class="kw">move</span> <span class="op">||</span> {
+            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{} is now being deallocated.&quot;</span>, <span class="ident">p</span>.<span class="ident">deref</span>());
+            <span class="comment">// Now we have unique access to the object pointed to by `p` and can turn it</span>
+            <span class="comment">// into an `Owned`. Dropping the `Owned` will deallocate the object.</span>
+            <span class="ident">drop</span>(<span class="ident">p</span>.<span class="ident">into_owned</span>());
+        });
+    }
+}</pre>
+</div><h4 id='method.flush' class="method"><span id='flush.v' class='invisible'><code>pub fn <a href='#method.flush' class='fnname'>flush</a>(&amp;self)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#204-208' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Clears up the thread-local cache of deferred functions by executing them or moving into the
+global cache.</p>
+<p>Call this method after deferring execution of a function if you want to get it executed as
+soon as possible. Flushing will make sure it is residing in in the global cache, so that
+any thread has a chance of taking the function and executing it.</p>
+<p>If this method is called from an <a href="fn.unprotected.html"><code>unprotected</code></a> guard, it is a no-op (nothing happens).</p>
+<h1 id="examples-1" class="section-header"><a href="#examples-1">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span> <span class="kw">as</span> <span class="ident">epoch</span>;
+
+<span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">epoch</span>::<span class="ident">pin</span>();
+<span class="kw">unsafe</span> {
+    <span class="ident">guard</span>.<span class="ident">defer</span>(<span class="kw">move</span> <span class="op">||</span> {
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;This better be printed as soon as possible!&quot;</span>);
+    });
+}
+<span class="ident">guard</span>.<span class="ident">flush</span>();</pre>
+</div><h4 id='method.repin' class="method"><span id='repin.v' class='invisible'><code>pub fn <a href='#method.repin' class='fnname'>repin</a>(&amp;mut self)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#241-245' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Unpins and then immediately re-pins the thread.</p>
+<p>This method is useful when you don't want delay the advancement of the global epoch by
+holding an old epoch. For safety, you should not maintain any guard-based reference across
+the call (the latter is enforced by <code>&amp;mut self</code>). The thread will only be repinned if this
+is the only active guard for the current thread.</p>
+<p>If this method is called from an <a href="fn.unprotected.html"><code>unprotected</code></a> guard, then the call will be just no-op.</p>
+<h1 id="examples-2" class="section-header"><a href="#examples-2">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">epoch</span>, <span class="ident">Atomic</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">thread</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
+
+<span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">Atomic</span>::<span class="ident">new</span>(<span class="number">777</span>);
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">guard</span> <span class="op">=</span> <span class="ident">epoch</span>::<span class="ident">pin</span>();
+{
+    <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">load</span>(<span class="ident">SeqCst</span>, <span class="kw-2">&amp;</span><span class="ident">guard</span>);
+    <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw">unsafe</span> { <span class="ident">p</span>.<span class="ident">as_ref</span>() }, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="number">777</span>));
+}
+<span class="ident">guard</span>.<span class="ident">repin</span>();
+{
+    <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">load</span>(<span class="ident">SeqCst</span>, <span class="kw-2">&amp;</span><span class="ident">guard</span>);
+    <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw">unsafe</span> { <span class="ident">p</span>.<span class="ident">as_ref</span>() }, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="number">777</span>));
+}</pre>
+</div><h4 id='method.repin_after' class="method"><span id='repin_after.v' class='invisible'><code>pub fn <a href='#method.repin_after' class='fnname'>repin_after</a>&lt;F, R&gt;(&amp;mut self, f: F) -&gt; R <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>() -&gt; R,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#279-299' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Temporarily unpins the thread, executes the given function and then re-pins the thread.</p>
+<p>This method is useful when you need to perform a long-running operation (e.g. sleeping)
+and don't need to maintain any guard-based reference across the call (the latter is enforced
+by <code>&amp;mut self</code>). The thread will only be unpinned if this is the only active guard for the
+current thread.</p>
+<p>If this method is called from an <a href="fn.unprotected.html"><code>unprotected</code></a> guard, then the passed function is called
+directly without unpinning the thread.</p>
+<h1 id="examples-3" class="section-header"><a href="#examples-3">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">epoch</span>, <span class="ident">Atomic</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">thread</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
+
+<span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">Atomic</span>::<span class="ident">new</span>(<span class="number">777</span>);
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">guard</span> <span class="op">=</span> <span class="ident">epoch</span>::<span class="ident">pin</span>();
+{
+    <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">load</span>(<span class="ident">SeqCst</span>, <span class="kw-2">&amp;</span><span class="ident">guard</span>);
+    <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw">unsafe</span> { <span class="ident">p</span>.<span class="ident">as_ref</span>() }, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="number">777</span>));
+}
+<span class="ident">guard</span>.<span class="ident">repin_after</span>(<span class="op">||</span> <span class="ident">thread</span>::<span class="ident">sleep</span>(<span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">50</span>)));
+{
+    <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">load</span>(<span class="ident">SeqCst</span>, <span class="kw-2">&amp;</span><span class="ident">guard</span>);
+    <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw">unsafe</span> { <span class="ident">p</span>.<span class="ident">as_ref</span>() }, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="number">777</span>));
+}</pre>
+</div><h4 id='method.collector' class="method"><span id='collector.v' class='invisible'><code>pub fn <a href='#method.collector' class='fnname'>collector</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="struct" href="../crossbeam_epoch/struct.Collector.html" title="struct crossbeam_epoch::Collector">Collector</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#319-321' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns the <code>Collector</code> associated with this guard.</p>
+<p>This method is useful when you need to ensure that all guards used with
+a data structure come from the same collector.</p>
+<p>If this method is called from an <a href="fn.unprotected.html"><code>unprotected</code></a> guard, then <code>None</code> is returned.</p>
+<h1 id="examples-4" class="section-header"><a href="#examples-4">Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">crossbeam_epoch</span> <span class="kw">as</span> <span class="ident">epoch</span>;
+
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">guard1</span> <span class="op">=</span> <span class="ident">epoch</span>::<span class="ident">pin</span>();
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">guard2</span> <span class="op">=</span> <span class="ident">epoch</span>::<span class="ident">pin</span>();
+<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">guard1</span>.<span class="ident">collector</span>() <span class="op">==</span> <span class="ident">guard2</span>.<span class="ident">collector</span>());</pre>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Drop' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/drop/trait.Drop.html" title="trait core::ops::drop::Drop">Drop</a> for <a class="struct" href="../crossbeam_epoch/struct.Guard.html" title="struct crossbeam_epoch::Guard">Guard</a></code><a href='#impl-Drop' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#324-331' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.drop' class="method"><span id='drop.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/ops/drop/trait.Drop.html#tymethod.drop' class='fnname'>drop</a>(&amp;mut self)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#326-330' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Executes the destructor for this type. <a href="https://doc.rust-lang.org/nightly/core/ops/drop/trait.Drop.html#tymethod.drop">Read more</a></p>
+</div></div><h3 id='impl-Clone' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="struct" href="../crossbeam_epoch/struct.Guard.html" title="struct crossbeam_epoch::Guard">Guard</a></code><a href='#impl-Clone' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#333-341' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class="struct" href="../crossbeam_epoch/struct.Guard.html" title="struct crossbeam_epoch::Guard">Guard</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#335-340' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#112-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../crossbeam_epoch/struct.Guard.html" title="struct crossbeam_epoch::Guard">Guard</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#343-347' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/crossbeam_epoch/guard.rs.html#344-346' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "crossbeam_epoch";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

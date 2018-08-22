@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Error` enum in crate `hyper`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Error">
+
+    <title>hyper::error::Error - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc enum">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Enum Error</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.Method">Method</a><a href="#variant.Uri">Uri</a><a href="#variant.Version">Version</a><a href="#variant.Header">Header</a><a href="#variant.TooLarge">TooLarge</a><a href="#variant.Incomplete">Incomplete</a><a href="#variant.Status">Status</a><a href="#variant.Timeout">Timeout</a><a href="#variant.Upgrade">Upgrade</a><a href="#variant.Cancel">Cancel</a><a href="#variant.Closed">Closed</a><a href="#variant.Io">Io</a><a href="#variant.Utf8">Utf8</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a><a href="#impl-Display">Display</a><a href="#impl-StdError">StdError</a><a href="#impl-From%3CUriError%3E">From&lt;UriError&gt;</a><a href="#impl-From%3CIoError%3E">From&lt;IoError&gt;</a><a href="#impl-From%3CUtf8Error%3E">From&lt;Utf8Error&gt;</a><a href="#impl-From%3CFromUtf8Error%3E">From&lt;FromUtf8Error&gt;</a><a href="#impl-From%3CError%3E">From&lt;Error&gt;</a></div></div><p class='location'><a href='../index.html'>hyper</a>::<wbr><a href='index.html'>error</a></p><script>window.sidebarCurrent = {name: 'Error', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Enum <a href='../index.html'>hyper</a>::<wbr><a href='index.html'>error</a>::<wbr><a class="enum" href=''>Error</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/hyper/error.rs.html#33-63' title='goto source code'>[src]</a></span></h1>
+<pre class='rust enum'>pub enum Error {
+    Method,
+    Uri(<a class="struct" href="../../hyper/error/struct.UriError.html" title="struct hyper::error::UriError">UriError</a>),
+    Version,
+    Header,
+    TooLarge,
+    Incomplete,
+    Status,
+    Timeout,
+    Upgrade,
+    Cancel(<a class="struct" href="../../hyper/error/struct.Canceled.html" title="struct hyper::error::Canceled">Canceled</a>),
+    Closed,
+    Io(<a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">IoError</a>),
+    Utf8(<a class="struct" href="https://doc.rust-lang.org/nightly/core/str/struct.Utf8Error.html" title="struct core::str::Utf8Error">Utf8Error</a>),
+    // some variants omitted
+}</pre><div class='docblock'><p>A set of errors that can occur parsing HTTP streams.</p>
+</div><h2 id='variants' class='variants small-section-header'>
+                   Variants<a href='#variants' class='anchor'></a></h2>
+<span id="variant.Method" class="variant small-section-header"><a href="#variant.Method" class="anchor field"></a><span id='Method.v' class='invisible'><code>Method</code></span></span><div class='docblock'><p>An invalid <code>Method</code>, such as <code>GE,T</code>.</p>
+</div><span id="variant.Uri" class="variant small-section-header"><a href="#variant.Uri" class="anchor field"></a><span id='Uri.v' class='invisible'><code>Uri(<a class="struct" href="../../hyper/error/struct.UriError.html" title="struct hyper::error::UriError">UriError</a>)</code></span></span><div class='docblock'><p>An invalid <code>Uri</code>, such as <code>exam ple.domain</code>.</p>
+</div><span id="variant.Version" class="variant small-section-header"><a href="#variant.Version" class="anchor field"></a><span id='Version.v' class='invisible'><code>Version</code></span></span><div class='docblock'><p>An invalid <code>HttpVersion</code>, such as <code>HTP/1.1</code></p>
+</div><span id="variant.Header" class="variant small-section-header"><a href="#variant.Header" class="anchor field"></a><span id='Header.v' class='invisible'><code>Header</code></span></span><div class='docblock'><p>An invalid <code>Header</code>.</p>
+</div><span id="variant.TooLarge" class="variant small-section-header"><a href="#variant.TooLarge" class="anchor field"></a><span id='TooLarge.v' class='invisible'><code>TooLarge</code></span></span><div class='docblock'><p>A message head is too large to be reasonable.</p>
+</div><span id="variant.Incomplete" class="variant small-section-header"><a href="#variant.Incomplete" class="anchor field"></a><span id='Incomplete.v' class='invisible'><code>Incomplete</code></span></span><div class='docblock'><p>A message reached EOF, but is not complete.</p>
+</div><span id="variant.Status" class="variant small-section-header"><a href="#variant.Status" class="anchor field"></a><span id='Status.v' class='invisible'><code>Status</code></span></span><div class='docblock'><p>An invalid <code>Status</code>, such as <code>1337 ELITE</code>.</p>
+</div><span id="variant.Timeout" class="variant small-section-header"><a href="#variant.Timeout" class="anchor field"></a><span id='Timeout.v' class='invisible'><code>Timeout</code></span></span><div class='docblock'><p>A timeout occurred waiting for an IO event.</p>
+</div><span id="variant.Upgrade" class="variant small-section-header"><a href="#variant.Upgrade" class="anchor field"></a><span id='Upgrade.v' class='invisible'><code>Upgrade</code></span></span><div class='docblock'><p>A protocol upgrade was encountered, but not yet supported in hyper.</p>
+</div><span id="variant.Cancel" class="variant small-section-header"><a href="#variant.Cancel" class="anchor field"></a><span id='Cancel.v' class='invisible'><code>Cancel(<a class="struct" href="../../hyper/error/struct.Canceled.html" title="struct hyper::error::Canceled">Canceled</a>)</code></span></span><div class='docblock'><p>A pending item was dropped before ever being processed.</p>
+</div><span id="variant.Closed" class="variant small-section-header"><a href="#variant.Closed" class="anchor field"></a><span id='Closed.v' class='invisible'><code>Closed</code></span></span><div class='docblock'><p>Indicates a connection is closed.</p>
+</div><span id="variant.Io" class="variant small-section-header"><a href="#variant.Io" class="anchor field"></a><span id='Io.v' class='invisible'><code>Io(<a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">IoError</a>)</code></span></span><div class='docblock'><p>An <code>io::Error</code> that occurred while trying to read or write to a network stream.</p>
+</div><span id="variant.Utf8" class="variant small-section-header"><a href="#variant.Utf8" class="anchor field"></a><span id='Utf8.v' class='invisible'><code>Utf8(<a class="struct" href="https://doc.rust-lang.org/nightly/core/str/struct.Utf8Error.html" title="struct core::str::Utf8Error">Utf8Error</a>)</code></span></span><div class='docblock'><p>Parsing a field as string failed</p>
+</div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#32' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#32' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-Display' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a> for <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code><a href='#impl-Display' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#105-114' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt-1' class="method"><span id='fmt.v-1' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#106-113' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-StdError' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html" title="trait std::error::Error">StdError</a> for <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code><a href='#impl-StdError' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#116-146' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.description' class="method"><span id='description.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/std/error/trait.Error.html#tymethod.description' class='fnname'>description</a>(&amp;self) -&gt; &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#117-134' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>A short description of the error. <a href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html#tymethod.description">Read more</a></p>
+</div><h4 id='method.cause' class="method"><span id='cause.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/std/error/trait.Error.html#method.cause' class='fnname'>cause</a>(&amp;self) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="trait" href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html" title="trait std::error::Error">StdError</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#136-145' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>The lower-level cause of this error, if any. <a href="https://doc.rust-lang.org/nightly/std/error/trait.Error.html#method.cause">Read more</a></p>
+</div></div><h3 id='impl-From%3CUriError%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="../../hyper/error/struct.UriError.html" title="struct hyper::error::UriError">UriError</a>&gt; for <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code><a href='#impl-From%3CUriError%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#148-152' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from' class="method"><span id='from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(err: <a class="struct" href="../../hyper/error/struct.UriError.html" title="struct hyper::error::UriError">UriError</a>) -&gt; <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#149-151' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CIoError%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">IoError</a>&gt; for <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code><a href='#impl-From%3CIoError%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#154-158' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-1' class="method"><span id='from.v-1' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(err: <a class="struct" href="https://doc.rust-lang.org/nightly/std/io/error/struct.Error.html" title="struct std::io::error::Error">IoError</a>) -&gt; <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#155-157' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CUtf8Error%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/core/str/struct.Utf8Error.html" title="struct core::str::Utf8Error">Utf8Error</a>&gt; for <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code><a href='#impl-From%3CUtf8Error%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#160-164' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-2' class="method"><span id='from.v-2' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(err: <a class="struct" href="https://doc.rust-lang.org/nightly/core/str/struct.Utf8Error.html" title="struct core::str::Utf8Error">Utf8Error</a>) -&gt; <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#161-163' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CFromUtf8Error%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.FromUtf8Error.html" title="struct alloc::string::FromUtf8Error">FromUtf8Error</a>&gt; for <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code><a href='#impl-From%3CFromUtf8Error%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#166-170' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-3' class="method"><span id='from.v-3' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(err: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.FromUtf8Error.html" title="struct alloc::string::FromUtf8Error">FromUtf8Error</a>) -&gt; <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#167-169' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div><h3 id='impl-From%3CError%3E' class='impl'><span class='in-band'><code>impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;<a class="enum" href="../../httparse/enum.Error.html" title="enum httparse::Error">Error</a>&gt; for <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code><a href='#impl-From%3CError%3E' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#172-184' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from-4' class="method"><span id='from.v-4' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/convert/trait.From.html#tymethod.from' class='fnname'>from</a>(err: <a class="enum" href="../../httparse/enum.Error.html" title="enum httparse::Error">Error</a>) -&gt; <a class="enum" href="../../hyper/error/enum.Error.html" title="enum hyper::error::Error">Error</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/hyper/error.rs.html#173-183' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs the conversion.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "hyper";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

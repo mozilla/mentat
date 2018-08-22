@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `tabwriter` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, tabwriter">
+
+    <title>tabwriter - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Crate tabwriter</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'tabwriter', ty: 'mod', relpath: '../'};</script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>tabwriter</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/tabwriter/lib.rs.html#1-389' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>This crate provides an implementation of
+<a href="http://nickgravgaard.com/elastictabstops/index.html">elastic tabstops</a>.
+It is a minimal port of Go's
+<a href="http://golang.org/pkg/text/tabwriter/">tabwriter</a> package.
+Namely, its main mode of operation is to wrap a <code>Writer</code> and implement
+elastic tabstops for the text written to the wrapped <code>Writer</code>.</p>
+<p>This package is also bundled with a program, <code>tabwriter</code>,
+that exposes this functionality at the command line.</p>
+<p>Here's an example that shows basic alignment:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Write</span>;
+<span class="kw">use</span> <span class="ident">tabwriter</span>::<span class="ident">TabWriter</span>;
+
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tw</span> <span class="op">=</span> <span class="ident">TabWriter</span>::<span class="ident">new</span>(<span class="macro">vec</span><span class="macro">!</span>[]);
+<span class="macro">write</span><span class="macro">!</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">tw</span>, <span class="string">&quot;
+Bruce Springsteen\tBorn to Run
+Bob Seger\tNight Moves
+Metallica\tBlack
+The Boss\tDarkness on the Edge of Town
+&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">tw</span>.<span class="ident">flush</span>().<span class="ident">unwrap</span>();
+
+<span class="kw">let</span> <span class="ident">written</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">from_utf8</span>(<span class="ident">tw</span>.<span class="ident">into_inner</span>().<span class="ident">unwrap</span>()).<span class="ident">unwrap</span>();
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">written</span>, <span class="string">&quot;
+Bruce Springsteen  Born to Run
+Bob Seger          Night Moves
+Metallica          Black
+The Boss           Darkness on the Edge of Town
+&quot;</span>);</pre>
+<p>Note that <code>flush</code> <strong>must</strong> be called or else <code>TabWriter</code> may never write
+anything. This is because elastic tabstops requires knowing about future
+lines in order to align output. More precisely, all text considered in a
+single alignment must fit into memory.</p>
+<p>Here's another example that demonstrates how <em>only</em> contiguous columns
+are aligned:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Write</span>;
+<span class="kw">use</span> <span class="ident">tabwriter</span>::<span class="ident">TabWriter</span>;
+
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tw</span> <span class="op">=</span> <span class="ident">TabWriter</span>::<span class="ident">new</span>(<span class="macro">vec</span><span class="macro">!</span>[]).<span class="ident">padding</span>(<span class="number">1</span>);
+<span class="macro">write</span><span class="macro">!</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">tw</span>, <span class="string">&quot;
+fn foobar() {{
+   let mut x = 1+1;\t// addition
+   x += 1;\t// increment in place
+   let y = x * x * x * x;\t// multiply!
+
+   y += 1;\t// this is another group
+   y += 2 * 2;\t// that is separately aligned
+}}
+&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">tw</span>.<span class="ident">flush</span>().<span class="ident">unwrap</span>();
+
+<span class="kw">let</span> <span class="ident">written</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">from_utf8</span>(<span class="ident">tw</span>.<span class="ident">into_inner</span>().<span class="ident">unwrap</span>()).<span class="ident">unwrap</span>();
+<span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">written</span>, <span class="string">&quot;
+fn foobar() {
+   let mut x = 1+1;       // addition
+   x += 1;                // increment in place
+   let y = x * x * x * x; // multiply!
+
+   y += 1;     // this is another group
+   y += 2 * 2; // that is separately aligned
+}
+&quot;</span>);</pre>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.IntoInnerError.html"
+                                  title='struct tabwriter::IntoInnerError'>IntoInnerError</a></td>
+                           <td class='docblock-short'>
+                                <p>An error returned by <code>into_inner</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.TabWriter.html"
+                                  title='struct tabwriter::TabWriter'>TabWriter</a></td>
+                           <td class='docblock-short'>
+                                <p>TabWriter wraps an arbitrary writer and aligns tabbed output.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "tabwriter";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

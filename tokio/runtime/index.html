@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `runtime` mod in crate `tokio`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, runtime">
+
+    <title>tokio::runtime - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Module runtime</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>tokio</a></p><script>window.sidebarCurrent = {name: 'runtime', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>tokio</a>::<wbr><a class="mod" href=''>runtime</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/tokio/runtime/mod.rs.html#1-495' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>A batteries included runtime for applications using Tokio.</p>
+<p>Applications using Tokio require some runtime support in order to work:</p>
+<ul>
+<li>A <a href="../reactor/struct.Reactor.html">reactor</a> to drive I/O resources.</li>
+<li>An <a href="https://tokio.rs/docs/getting-started/runtime-model/#executors">executor</a> to execute tasks that use these I/O resources.</li>
+<li>A <a href="../timer/index.html">timer</a> for scheduling work to run after a set period of time.</li>
+</ul>
+<p>While it is possible to setup each component manually, this involves a bunch
+of boilerplate.</p>
+<p><a href="struct.Runtime.html"><code>Runtime</code></a> bundles all of these various runtime components into a single
+handle that can be started and shutdown together, eliminating the necessary
+boilerplate to run a Tokio application.</p>
+<p>Most applications wont need to use <a href="struct.Runtime.html"><code>Runtime</code></a> directly. Instead, they will
+use the <a href="fn.run.html"><code>run</code></a> function, which uses <a href="struct.Runtime.html"><code>Runtime</code></a> under the hood.</p>
+<p>Creating a <a href="struct.Runtime.html"><code>Runtime</code></a> does the following:</p>
+<ul>
+<li>Spawn a background thread running a <a href="../reactor/struct.Reactor.html"><code>Reactor</code></a> instance.</li>
+<li>Start a <a href="../executor/thread_pool/struct.ThreadPool.html"><code>ThreadPool</code></a> for executing futures.</li>
+<li>Run an instance of <a href="https://docs.rs/tokio-timer/0.2/tokio_timer/timer/struct.Timer.html"><code>Timer</code></a> <strong>per</strong> thread pool worker thread.</li>
+</ul>
+<p>The thread pool uses a work-stealing strategy and is configured to start a
+worker thread for each CPU core available on the system. This tends to be
+the ideal setup for Tokio applications.</p>
+<p>A timer per thread pool worker thread is used to minimize the amount of
+synchronization that is required for working with the timer.</p>
+<h1 id="usage" class="section-header"><a href="#usage">Usage</a></h1>
+<p>Most applications will use the <a href="fn.run.html"><code>run</code></a> function. This takes a future to
+&quot;seed&quot; the application, blocking the thread until the runtime becomes
+<a href="struct.Runtime.html#method.shutdown_on_idle">idle</a>.</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">net</span>::<span class="ident">TcpListener</span>;
+
+<span class="kw">let</span> <span class="ident">listener</span> <span class="op">=</span> <span class="ident">TcpListener</span>::<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">addr</span>).<span class="ident">unwrap</span>();
+
+<span class="kw">let</span> <span class="ident">server</span> <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">incoming</span>()
+    .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;error = {:?}&quot;</span>, <span class="ident">e</span>))
+    .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">socket</span><span class="op">|</span> {
+        <span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">process</span>(<span class="ident">socket</span>))
+    });
+
+<span class="ident">tokio</span>::<span class="ident">run</span>(<span class="ident">server</span>);</pre>
+<p>In this function, the <code>run</code> function blocks until the runtime becomes idle.
+See <a href="struct.Runtime.html#method.shutdown_on_idle"><code>shutdown_on_idle</code></a> for more shutdown details.</p>
+<p>From within the context of the runtime, additional tasks are spawned using
+the <a href="../executor/fn.spawn.html"><code>tokio::spawn</code></a> function. Futures spawned using this function will be
+executed on the same thread pool used by the <a href="struct.Runtime.html"><code>Runtime</code></a>.</p>
+<p>A <a href="struct.Runtime.html"><code>Runtime</code></a> instance can also be used directly.</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">Runtime</span>;
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">net</span>::<span class="ident">TcpListener</span>;
+
+<span class="kw">let</span> <span class="ident">listener</span> <span class="op">=</span> <span class="ident">TcpListener</span>::<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">addr</span>).<span class="ident">unwrap</span>();
+
+<span class="kw">let</span> <span class="ident">server</span> <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">incoming</span>()
+    .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;error = {:?}&quot;</span>, <span class="ident">e</span>))
+    .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">socket</span><span class="op">|</span> {
+        <span class="ident">tokio</span>::<span class="ident">spawn</span>(<span class="ident">process</span>(<span class="ident">socket</span>))
+    });
+
+<span class="comment">// Create the runtime</span>
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rt</span> <span class="op">=</span> <span class="ident">Runtime</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
+
+<span class="comment">// Spawn the server task</span>
+<span class="ident">rt</span>.<span class="ident">spawn</span>(<span class="ident">server</span>);
+
+<span class="comment">// Wait until the runtime becomes idle and shut it down.</span>
+<span class="ident">rt</span>.<span class="ident">shutdown_on_idle</span>()
+    .<span class="ident">wait</span>().<span class="ident">unwrap</span>();</pre>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="current_thread/index.html"
+                                  title='mod tokio::runtime::current_thread'>current_thread</a></td>
+                           <td class='docblock-short'>
+                                <p>A runtime implementation that runs everything on the current thread.</p>
+
+                           </td>
+                       </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Builder.html"
+                                  title='struct tokio::runtime::Builder'>Builder</a></td>
+                           <td class='docblock-short'>
+                                <p>Builds Tokio Runtime with custom configuration values.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Runtime.html"
+                                  title='struct tokio::runtime::Runtime'>Runtime</a></td>
+                           <td class='docblock-short'>
+                                <p>Handle to the Tokio runtime.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Shutdown.html"
+                                  title='struct tokio::runtime::Shutdown'>Shutdown</a></td>
+                           <td class='docblock-short'>
+                                <p>A future that resolves when the Tokio <code>Runtime</code> is shut down.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.TaskExecutor.html"
+                                  title='struct tokio::runtime::TaskExecutor'>TaskExecutor</a></td>
+                           <td class='docblock-short'>
+                                <p>Executes futures on the runtime</p>
+
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.run.html"
+                                  title='fn tokio::runtime::run'>run</a></td>
+                           <td class='docblock-short'>
+                                <p>Start the Tokio runtime using the supplied future to bootstrap execution.</p>
+
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

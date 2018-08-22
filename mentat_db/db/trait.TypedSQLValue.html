@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `TypedSQLValue` trait in crate `mentat_db`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, TypedSQLValue">
+
+    <title>mentat_db::db::TypedSQLValue - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait TypedSQLValue</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.from_sql_value_pair">from_sql_value_pair</a><a href="#tymethod.to_sql_value_pair">to_sql_value_pair</a><a href="#tymethod.from_edn_value">from_edn_value</a><a href="#tymethod.to_edn_value_pair">to_edn_value_pair</a></div><a class="sidebar-title" href="#foreign-impls">Implementations on Foreign Types</a><div class="sidebar-links"><a href="#impl-TypedSQLValue">TypedValue</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='../index.html'>mentat_db</a>::<wbr><a href='index.html'>db</a></p><script>window.sidebarCurrent = {name: 'TypedSQLValue', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>mentat_db</a>::<wbr><a href='index.html'>db</a>::<wbr><a class="trait" href=''>TypedSQLValue</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/mentat_db/db.rs.html#375-380' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait TypedSQLValue {
+    fn <a href='#tymethod.from_sql_value_pair' class='fnname'>from_sql_value_pair</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value: <a class="enum" href="../../rusqlite/types/value/enum.Value.html" title="enum rusqlite::types::value::Value">Value</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_type_tag: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a><br>&nbsp;&nbsp;&nbsp;&nbsp;) -&gt; <a class="type" href="../../db_traits/errors/type.Result.html" title="type db_traits::errors::Result">Result</a>&lt;<a class="enum" href="../../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.to_sql_value_pair' class='fnname'>to_sql_value_pair</a>&lt;'a&gt;(&amp;'a self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../../rusqlite/types/to_sql/enum.ToSqlOutput.html" title="enum rusqlite::types::to_sql::ToSqlOutput">ToSqlOutput</a>&lt;'a&gt;, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>;
+<div class='item-spacer'></div>    fn <a href='#tymethod.from_edn_value' class='fnname'>from_edn_value</a>(value: &amp;<a class="enum" href="../../edn/types/enum.Value.html" title="enum edn::types::Value">Value</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>&gt;;
+<div class='item-spacer'></div>    fn <a href='#tymethod.to_edn_value_pair' class='fnname'>to_edn_value_pair</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../../edn/types/enum.Value.html" title="enum edn::types::Value">Value</a>, <a class="enum" href="../../core_traits/enum.ValueType.html" title="enum core_traits::ValueType">ValueType</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>;
+}</pre>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.from_sql_value_pair' class='method'><span id='from_sql_value_pair.v' class='invisible'><code>fn <a href='#tymethod.from_sql_value_pair' class='fnname'>from_sql_value_pair</a>(value: <a class="enum" href="../../rusqlite/types/value/enum.Value.html" title="enum rusqlite::types::value::Value">Value</a>, value_type_tag: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a>) -&gt; <a class="type" href="../../db_traits/errors/type.Result.html" title="type db_traits::errors::Result">Result</a>&lt;<a class="enum" href="../../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>&gt;</code></span></h3><h3 id='tymethod.to_sql_value_pair' class='method'><span id='to_sql_value_pair.v' class='invisible'><code>fn <a href='#tymethod.to_sql_value_pair' class='fnname'>to_sql_value_pair</a>&lt;'a&gt;(&amp;'a self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../../rusqlite/types/to_sql/enum.ToSqlOutput.html" title="enum rusqlite::types::to_sql::ToSqlOutput">ToSqlOutput</a>&lt;'a&gt;, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code></span></h3><h3 id='tymethod.from_edn_value' class='method'><span id='from_edn_value.v' class='invisible'><code>fn <a href='#tymethod.from_edn_value' class='fnname'>from_edn_value</a>(value: &amp;<a class="enum" href="../../edn/types/enum.Value.html" title="enum edn::types::Value">Value</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>&gt;</code></span></h3><h3 id='tymethod.to_edn_value_pair' class='method'><span id='to_edn_value_pair.v' class='invisible'><code>fn <a href='#tymethod.to_edn_value_pair' class='fnname'>to_edn_value_pair</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../../edn/types/enum.Value.html" title="enum edn::types::Value">Value</a>, <a class="enum" href="../../core_traits/enum.ValueType.html" title="enum core_traits::ValueType">ValueType</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code></span></h3></div>
+                <h2 id='foreign-impls' class='small-section-header'>
+                  Implementations on Foreign Types<a href='#foreign-impls' class='anchor'></a>
+                </h2>
+            <h3 id='impl-TypedSQLValue' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../mentat_db/db/trait.TypedSQLValue.html" title="trait mentat_db::db::TypedSQLValue">TypedSQLValue</a> for <a class="enum" href="../../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a></code><a href='#impl-TypedSQLValue' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#382-461' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.from_sql_value_pair' class="method"><span id='from_sql_value_pair.v-1' class='invisible'><code>fn <a href='#method.from_sql_value_pair' class='fnname'>from_sql_value_pair</a>(value: <a class="enum" href="../../rusqlite/types/value/enum.Value.html" title="enum rusqlite::types::value::Value">Value</a>, value_type_tag: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a>) -&gt; <a class="type" href="../../db_traits/errors/type.Result.html" title="type db_traits::errors::Result">Result</a>&lt;<a class="enum" href="../../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#384-411' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Given a SQLite <code>value</code> and a <code>value_type_tag</code>, return the corresponding <code>TypedValue</code>.</p>
+</div><h4 id='method.from_edn_value' class="method"><span id='from_edn_value.v-1' class='invisible'><code>fn <a href='#method.from_edn_value' class='fnname'>from_edn_value</a>(value: &amp;<a class="enum" href="../../edn/types/enum.Value.html" title="enum edn::types::Value">Value</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../core_traits/enum.TypedValue.html" title="enum core_traits::TypedValue">TypedValue</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#420-431' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Given an EDN <code>value</code>, return a corresponding Mentat <code>TypedValue</code>.</p>
+<p>An EDN <code>Value</code> does not encode a unique Mentat <code>ValueType</code>, so the composition
+<code>from_edn_value(first(to_edn_value_pair(...)))</code> loses information.  Additionally, there are
+EDN values which are not Mentat typed values.</p>
+<p>This function is deterministic.</p>
+</div><h4 id='method.to_sql_value_pair' class="method"><span id='to_sql_value_pair.v-1' class='invisible'><code>fn <a href='#method.to_sql_value_pair' class='fnname'>to_sql_value_pair</a>&lt;'a&gt;(&amp;'a self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../../rusqlite/types/to_sql/enum.ToSqlOutput.html" title="enum rusqlite::types::to_sql::ToSqlOutput">ToSqlOutput</a>&lt;'a&gt;, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#434-446' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Return the corresponding SQLite <code>value</code> and <code>value_type_tag</code> pair.</p>
+</div><h4 id='method.to_edn_value_pair' class="method"><span id='to_edn_value_pair.v-1' class='invisible'><code>fn <a href='#method.to_edn_value_pair' class='fnname'>to_edn_value_pair</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="enum" href="../../edn/types/enum.Value.html" title="enum edn::types::Value">Value</a>, <a class="enum" href="../../core_traits/enum.ValueType.html" title="enum core_traits::ValueType">ValueType</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/mentat_db/db.rs.html#449-460' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Return the corresponding EDN <code>value</code> and <code>value_type</code> pair.</p>
+</div></div></span>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    </ul><script type="text/javascript" async
+                         src="../../implementors/mentat_db/db/trait.TypedSQLValue.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "mentat_db";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

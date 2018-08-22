@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["simple_fast","This is an implementation of the engineered [\"Simple, Fast Dominance Algorithm\"][0] discovered by Cooper et al."]],"struct":[["Dominators","The dominance relation for some graph and root."],["DominatorsIter","Iterator for a node's dominators."]]});

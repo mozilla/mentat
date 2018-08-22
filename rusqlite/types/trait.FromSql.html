@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `FromSql` trait in crate `rusqlite`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, FromSql">
+
+    <title>rusqlite::types::FromSql - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc trait">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Trait FromSql</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.column_result">column_result</a></div><a class="sidebar-title" href="#foreign-impls">Implementations on Foreign Types</a><div class="sidebar-links"><a href="#impl-FromSql">i8</a><a href="#impl-FromSql">i16</a><a href="#impl-FromSql">i32</a><a href="#impl-FromSql">isize</a><a href="#impl-FromSql">u8</a><a href="#impl-FromSql">u16</a><a href="#impl-FromSql">u32</a><a href="#impl-FromSql">i64</a><a href="#impl-FromSql">f64</a><a href="#impl-FromSql">bool</a><a href="#impl-FromSql">String</a><a href="#impl-FromSql">Vec&lt;u8&gt;</a><a href="#impl-FromSql">Option&lt;T&gt;</a><a href="#impl-FromSql">Timespec</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='../index.html'>rusqlite</a>::<wbr><a href='index.html'>types</a></p><script>window.sidebarCurrent = {name: 'FromSql', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>rusqlite</a>::<wbr><a href='index.html'>types</a>::<wbr><a class="trait" href=''>FromSql</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#60-62' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait FromSql: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> {
+    fn <a href='#tymethod.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;;
+}</pre><div class='docblock'><p>A trait for types that can be created from a SQLite value.</p>
+<p>Note that <code>FromSql</code> and <code>ToSql</code> are defined for most integral types, but not <code>u64</code> or <code>usize</code>.
+This is intentional; SQLite returns integers as signed 64-bit values, which cannot fully
+represent the range of these types. Rusqlite would have to decide how to handle negative
+values: return an error or reinterpret as a very large postive numbers, neither of which is
+guaranteed to be correct for everyone. Callers can work around this by fetching values as i64
+and then doing the interpretation themselves or by defining a newtype and implementing
+<code>FromSql</code>/<code>ToSql</code> for it.</p>
+</div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.column_result' class='method'><span id='column_result.v' class='invisible'><code>fn <a href='#tymethod.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span></h3></div>
+                <h2 id='foreign-impls' class='small-section-header'>
+                  Implementations on Foreign Types<a href='#foreign-impls' class='anchor'></a>
+                </h2>
+            <h3 id='impl-FromSql' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i8.html">i8</a></code><a href='#impl-FromSql' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#66-76' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result' class="method"><span id='column_result.v-1' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#67-75' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-1' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i16.html">i16</a></code><a href='#impl-FromSql-1' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#66-76' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-1' class="method"><span id='column_result.v-2' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#67-75' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-2' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i32.html">i32</a></code><a href='#impl-FromSql-2' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#66-76' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-2' class="method"><span id='column_result.v-3' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#67-75' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-3' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.isize.html">isize</a></code><a href='#impl-FromSql-3' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#66-76' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-3' class="method"><span id='column_result.v-4' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#67-75' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-4' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a></code><a href='#impl-FromSql-4' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#66-76' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-4' class="method"><span id='column_result.v-5' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#67-75' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-5' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u16.html">u16</a></code><a href='#impl-FromSql-5' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#66-76' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-5' class="method"><span id='column_result.v-6' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#67-75' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-6' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a></code><a href='#impl-FromSql-6' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#66-76' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-6' class="method"><span id='column_result.v-7' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#67-75' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-7' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a></code><a href='#impl-FromSql-7' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#88-92' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-7' class="method"><span id='column_result.v-8' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#89-91' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-8' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.f64.html">f64</a></code><a href='#impl-FromSql-8' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#94-102' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-8' class="method"><span id='column_result.v-9' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#95-101' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-9' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code><a href='#impl-FromSql-9' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#104-111' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-9' class="method"><span id='column_result.v-10' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#105-110' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-10' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a></code><a href='#impl-FromSql-10' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#113-117' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-10' class="method"><span id='column_result.v-11' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#114-116' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-11' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;</code><a href='#impl-FromSql-11' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#119-123' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-11' class="method"><span id='column_result.v-12' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#120-122' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-12' class='impl'><span class='in-band'><code>impl&lt;T:&nbsp;<a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a>&gt; <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;T&gt;</code><a href='#impl-FromSql-12' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#125-132' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-12' class="method"><span id='column_result.v-13' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#126-131' title='goto source code'>[src]</a></span></h4>
+</div></span><h3 id='impl-FromSql-13' class='impl'><span class='in-band'><code>impl <a class="trait" href="../../rusqlite/types/trait.FromSql.html" title="trait rusqlite::types::FromSql">FromSql</a> for <a class="struct" href="../../time/struct.Timespec.html" title="struct time::Timespec">Timespec</a></code><a href='#impl-FromSql-13' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/time.rs.html#18-27' title='goto source code'>[src]</a></span></h3>
+<span class='docblock autohide'><div class='impl-items'><h4 id='method.column_result-13' class="method"><span id='column_result.v-14' class='invisible'><code>fn <a href='#method.column_result' class='fnname'>column_result</a>(value: <a class="enum" href="../../rusqlite/types/enum.ValueRef.html" title="enum rusqlite::types::ValueRef">ValueRef</a>) -&gt; <a class="type" href="../../rusqlite/types/type.FromSqlResult.html" title="type rusqlite::types::FromSqlResult">FromSqlResult</a>&lt;Self&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/rusqlite/types/time.rs.html#19-26' title='goto source code'>[src]</a></span></h4>
+</div></span>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    <li><div class='out-of-band'><a class='srclink' href='../../src/rusqlite/types/from_sql.rs.html#134-138' title='goto source code'>[src]</a></div><code>impl FromSql for <a class="enum" href="../../rusqlite/types/enum.Value.html" title="enum rusqlite::types::Value">Value</a></code></li>
+</ul><script type="text/javascript" async
+                         src="../../implementors/rusqlite/types/trait.FromSql.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "rusqlite";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

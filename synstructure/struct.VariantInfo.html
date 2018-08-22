@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `VariantInfo` struct in crate `synstructure`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, VariantInfo">
+
+    <title>synstructure::VariantInfo - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct VariantInfo</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#fields">Fields</a><div class="sidebar-links"><a href="#structfield.prefix">prefix</a></div><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.bindings">bindings</a><a href="#method.bindings_mut">bindings_mut</a><a href="#method.ast">ast</a><a href="#method.omitted_bindings">omitted_bindings</a><a href="#method.pat">pat</a><a href="#method.construct">construct</a><a href="#method.each">each</a><a href="#method.fold">fold</a><a href="#method.filter">filter</a><a href="#method.remove_binding">remove_binding</a><a href="#method.bind_with">bind_with</a><a href="#method.binding_name">binding_name</a><a href="#method.referenced_ty_params">referenced_ty_params</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a><a href="#impl-Clone">Clone</a><a href="#impl-PartialEq">PartialEq</a><a href="#impl-Eq">Eq</a><a href="#impl-Hash">Hash</a></div></div><p class='location'><a href='index.html'>synstructure</a></p><script>window.sidebarCurrent = {name: 'VariantInfo', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>synstructure</a>::<wbr><a class="struct" href=''>VariantInfo</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/synstructure/lib.rs.html#410-416' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct VariantInfo&lt;'a&gt; {
+    pub prefix: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;'a <a class="struct" href="../proc_macro2/struct.Ident.html" title="struct proc_macro2::Ident">Ident</a>&gt;,
+    // some fields omitted
+}</pre><div class='docblock'><p>A wrapper around a <code>syn::DeriveInput</code>'s variant which provides utilities
+for destructuring <code>Variant</code>s with <code>match</code> expressions.</p>
+</div><h2 id='fields' class='fields small-section-header'>
+                       Fields<a href='#fields' class='anchor'></a></h2><span id="structfield.prefix" class="structfield small-section-header">
+                           <a href="#structfield.prefix" class="anchor field"></a>
+                           <span id="prefix.v" class='invisible'>
+                           <code>prefix: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;'a <a class="struct" href="../proc_macro2/struct.Ident.html" title="struct proc_macro2::Ident">Ident</a>&gt;</code>
+                           </span></span>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class="struct" href="../synstructure/struct.VariantInfo.html" title="struct synstructure::VariantInfo">VariantInfo</a>&lt;'a&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#462-949' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.bindings' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></span></div><div class="content hidden"><h3 class="important">Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></h3><code class="content"><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></span><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a mut [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></span></code></div></div><span id='bindings.v' class='invisible'><code>pub fn <a href='#method.bindings' class='fnname'>bindings</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[</a><a class="struct" href="../synstructure/struct.BindingInfo.html" title="struct synstructure::BindingInfo">BindingInfo</a>&lt;'a&gt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#498-500' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a slice of the bindings in this Variant.</p>
+</div><h4 id='method.bindings_mut' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></span></div><div class="content hidden"><h3 class="important">Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></h3><code class="content"><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></span><span class="where fmt-newline">impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;'a mut [</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></span></code></div></div><span id='bindings_mut.v' class='invisible'><code>pub fn <a href='#method.bindings_mut' class='fnname'>bindings_mut</a>(&amp;mut self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;mut [</a><a class="struct" href="../synstructure/struct.BindingInfo.html" title="struct synstructure::BindingInfo">BindingInfo</a>&lt;'a&gt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#503-505' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a mut slice of the bindings in this Variant.</p>
+</div><h4 id='method.ast' class="method"><span id='ast.v' class='invisible'><code>pub fn <a href='#method.ast' class='fnname'>ast</a>(&amp;self) -&gt; <a class="struct" href="../synstructure/struct.VariantAst.html" title="struct synstructure::VariantAst">VariantAst</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#509-511' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a <code>VariantAst</code> object which contains references to the
+underlying <code>syn</code> AST node which this <code>Variant</code> was created from.</p>
+</div><h4 id='method.omitted_bindings' class="method"><span id='omitted_bindings.v' class='invisible'><code>pub fn <a href='#method.omitted_bindings' class='fnname'>omitted_bindings</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#514-516' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>True if any bindings were omitted due to a <code>filter</code> call.</p>
+</div><h4 id='method.pat' class="method"><span id='pat.v' class='invisible'><code>pub fn <a href='#method.pat' class='fnname'>pat</a>(&amp;self) -&gt; <a class="struct" href="../proc_macro2/struct.TokenStream.html" title="struct proc_macro2::TokenStream">TokenStream</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#543-580' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Generates the match-arm pattern which could be used to match against this Variant.</p>
+<h1 id="example" class="section-header"><a href="#example">Example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">let</span> <span class="ident">di</span>: <span class="ident">syn</span>::<span class="ident">DeriveInput</span> <span class="op">=</span> <span class="macro">parse_quote</span><span class="macro">!</span> {
+    <span class="kw">enum</span> <span class="ident">A</span> {
+        <span class="ident">B</span>(<span class="ident">i32</span>, <span class="ident">i32</span>),
+        <span class="ident">C</span>(<span class="ident">u32</span>),
+    }
+};
+<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">Structure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">di</span>);
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(
+    <span class="ident">s</span>.<span class="ident">variants</span>()[<span class="number">0</span>].<span class="ident">pat</span>().<span class="ident">to_string</span>(),
+    <span class="macro">quote</span><span class="macro">!</span>{
+        <span class="ident">A</span>::<span class="ident">B</span>(<span class="kw-2">ref</span> <span class="ident">__binding_0</span>, <span class="kw-2">ref</span> <span class="ident">__binding_1</span>,)
+    }.<span class="ident">to_string</span>()
+);</pre>
+</div><h4 id='method.construct' class="method"><span id='construct.v' class='invisible'><code>pub fn <a href='#method.construct' class='fnname'>construct</a>&lt;F, T&gt;(&amp;self, func: F) -&gt; <a class="struct" href="../proc_macro2/struct.TokenStream.html" title="struct proc_macro2::TokenStream">TokenStream</a> <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;<a class="struct" href="../syn/data/struct.Field.html" title="struct syn::data::Field">Field</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>) -&gt; T,<br>&nbsp;&nbsp;&nbsp;&nbsp;T: <a class="trait" href="../quote/to_tokens/trait.ToTokens.html" title="trait quote::to_tokens::ToTokens">ToTokens</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#619-652' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Generates the token stream required to construct the current variant.</p>
+<p>The init array initializes each of the fields in the order they are
+written in <code>variant.ast().fields</code>.</p>
+<h1 id="example-1" class="section-header"><a href="#example-1">Example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">let</span> <span class="ident">di</span>: <span class="ident">syn</span>::<span class="ident">DeriveInput</span> <span class="op">=</span> <span class="macro">parse_quote</span><span class="macro">!</span> {
+    <span class="kw">enum</span> <span class="ident">A</span> {
+        <span class="ident">B</span>(<span class="ident">usize</span>, <span class="ident">usize</span>),
+        <span class="ident">C</span>{ <span class="ident">v</span>: <span class="ident">usize</span> },
+    }
+};
+<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">Structure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">di</span>);
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(
+    <span class="ident">s</span>.<span class="ident">variants</span>()[<span class="number">0</span>].<span class="ident">construct</span>(<span class="op">|</span>_, <span class="ident">i</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(#<span class="ident">i</span>)).<span class="ident">to_string</span>(),
+
+    <span class="macro">quote</span><span class="macro">!</span>{
+        <span class="ident">A</span>::<span class="ident">B</span>(<span class="number">0usize</span>, <span class="number">1usize</span>,)
+    }.<span class="ident">to_string</span>()
+);
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(
+    <span class="ident">s</span>.<span class="ident">variants</span>()[<span class="number">1</span>].<span class="ident">construct</span>(<span class="op">|</span>_, <span class="ident">i</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(#<span class="ident">i</span>)).<span class="ident">to_string</span>(),
+
+    <span class="macro">quote</span><span class="macro">!</span>{
+        <span class="ident">A</span>::<span class="ident">C</span>{ <span class="ident">v</span>: <span class="number">0usize</span>, }
+    }.<span class="ident">to_string</span>()
+);</pre>
+</div><h4 id='method.each' class="method"><span id='each.v' class='invisible'><code>pub fn <a href='#method.each' class='fnname'>each</a>&lt;F, R&gt;(&amp;self, f: F) -&gt; <a class="struct" href="../proc_macro2/struct.TokenStream.html" title="struct proc_macro2::TokenStream">TokenStream</a> <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;<a class="struct" href="../synstructure/struct.BindingInfo.html" title="struct synstructure::BindingInfo">BindingInfo</a>) -&gt; R,<br>&nbsp;&nbsp;&nbsp;&nbsp;R: <a class="trait" href="../quote/to_tokens/trait.ToTokens.html" title="trait quote::to_tokens::ToTokens">ToTokens</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#687-700' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Runs the passed-in function once for each bound field, passing in a <code>BindingInfo</code>.
+and generating a <code>match</code> arm which evaluates the returned tokens.</p>
+<p>This method will ignore fields which are ignored through the <code>filter</code>
+method.</p>
+<h1 id="example-2" class="section-header"><a href="#example-2">Example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">let</span> <span class="ident">di</span>: <span class="ident">syn</span>::<span class="ident">DeriveInput</span> <span class="op">=</span> <span class="macro">parse_quote</span><span class="macro">!</span> {
+    <span class="kw">enum</span> <span class="ident">A</span> {
+        <span class="ident">B</span>(<span class="ident">i32</span>, <span class="ident">i32</span>),
+        <span class="ident">C</span>(<span class="ident">u32</span>),
+    }
+};
+<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">Structure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">di</span>);
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(
+    <span class="ident">s</span>.<span class="ident">variants</span>()[<span class="number">0</span>].<span class="ident">each</span>(<span class="op">|</span><span class="ident">bi</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, #<span class="ident">bi</span>))).<span class="ident">to_string</span>(),
+
+    <span class="macro">quote</span><span class="macro">!</span>{
+        <span class="ident">A</span>::<span class="ident">B</span>(<span class="kw-2">ref</span> <span class="ident">__binding_0</span>, <span class="kw-2">ref</span> <span class="ident">__binding_1</span>,) <span class="op">=&gt;</span> {
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">__binding_0</span>) }
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">__binding_1</span>) }
+        }
+    }.<span class="ident">to_string</span>()
+);</pre>
+</div><h4 id='method.fold' class="method"><span id='fold.v' class='invisible'><code>pub fn <a href='#method.fold' class='fnname'>fold</a>&lt;F, I, R&gt;(&amp;self, init: I, f: F) -&gt; <a class="struct" href="../proc_macro2/struct.TokenStream.html" title="struct proc_macro2::TokenStream">TokenStream</a> <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(<a class="struct" href="../proc_macro2/struct.TokenStream.html" title="struct proc_macro2::TokenStream">TokenStream</a>, &amp;<a class="struct" href="../synstructure/struct.BindingInfo.html" title="struct synstructure::BindingInfo">BindingInfo</a>) -&gt; R,<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="../quote/to_tokens/trait.ToTokens.html" title="trait quote::to_tokens::ToTokens">ToTokens</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;R: <a class="trait" href="../quote/to_tokens/trait.ToTokens.html" title="trait quote::to_tokens::ToTokens">ToTokens</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#735-747' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Runs the passed-in function once for each bound field, passing in the
+result of the previous call, and a <code>BindingInfo</code>. generating a <code>match</code>
+arm which evaluates to the resulting tokens.</p>
+<p>This method will ignore fields which are ignored through the <code>filter</code>
+method.</p>
+<h1 id="example-3" class="section-header"><a href="#example-3">Example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">let</span> <span class="ident">di</span>: <span class="ident">syn</span>::<span class="ident">DeriveInput</span> <span class="op">=</span> <span class="macro">parse_quote</span><span class="macro">!</span> {
+    <span class="kw">enum</span> <span class="ident">A</span> {
+        <span class="ident">B</span>(<span class="ident">i32</span>, <span class="ident">i32</span>),
+        <span class="ident">C</span>(<span class="ident">u32</span>),
+    }
+};
+<span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">Structure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">di</span>);
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(
+    <span class="ident">s</span>.<span class="ident">variants</span>()[<span class="number">0</span>].<span class="ident">fold</span>(<span class="macro">quote</span><span class="macro">!</span>(<span class="number">0</span>), <span class="op">|</span><span class="ident">acc</span>, <span class="ident">bi</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(#<span class="ident">acc</span> <span class="op">+</span> #<span class="ident">bi</span>)).<span class="ident">to_string</span>(),
+
+    <span class="macro">quote</span><span class="macro">!</span>{
+        <span class="ident">A</span>::<span class="ident">B</span>(<span class="kw-2">ref</span> <span class="ident">__binding_0</span>, <span class="kw-2">ref</span> <span class="ident">__binding_1</span>,) <span class="op">=&gt;</span> {
+            <span class="number">0</span> <span class="op">+</span> <span class="ident">__binding_0</span> <span class="op">+</span> <span class="ident">__binding_1</span>
+        }
+    }.<span class="ident">to_string</span>()
+);</pre>
+</div><h4 id='method.filter' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</h3><code class="content"><span class="where fmt-newline">impl&lt;'a, R&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;R: <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, W&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>W <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;W: <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, I&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>I <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &lt;I as <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a>&gt;::<a class="type" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item" title="type core::iter::iterator::Iterator::Item">Item</a>;</span></code></div></div><span id='filter.v' class='invisible'><code>pub fn <a href='#method.filter' class='fnname'>filter</a>&lt;F&gt;(&amp;mut self, f: F) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;<a class="struct" href="../synstructure/struct.BindingInfo.html" title="struct synstructure::BindingInfo">BindingInfo</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#792-802' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Filter the bindings created by this <code>Variant</code> object. This has 2 effects:</p>
+<ul>
+<li>
+<p>The bindings will no longer appear in match arms generated by methods
+on this <code>Variant</code> or its subobjects.</p>
+</li>
+<li>
+<p>Impl blocks created with the <code>bound_impl</code> or <code>unsafe_bound_impl</code>
+method only consider type parameters referenced in the types of
+non-filtered fields.</p>
+</li>
+</ul>
+<h1 id="example-4" class="section-header"><a href="#example-4">Example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">let</span> <span class="ident">di</span>: <span class="ident">syn</span>::<span class="ident">DeriveInput</span> <span class="op">=</span> <span class="macro">parse_quote</span><span class="macro">!</span> {
+    <span class="kw">enum</span> <span class="ident">A</span> {
+        <span class="ident">B</span>{ <span class="ident">a</span>: <span class="ident">i32</span>, <span class="ident">b</span>: <span class="ident">i32</span> },
+        <span class="ident">C</span>{ <span class="ident">a</span>: <span class="ident">u32</span> },
+    }
+};
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">Structure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">di</span>);
+
+<span class="ident">s</span>.<span class="ident">variants_mut</span>()[<span class="number">0</span>].<span class="ident">filter</span>(<span class="op">|</span><span class="ident">bi</span><span class="op">|</span> {
+    <span class="ident">bi</span>.<span class="ident">ast</span>().<span class="ident">ident</span> <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">syn</span>::<span class="ident">Ident</span>::<span class="ident">new</span>(<span class="string">&quot;b&quot;</span>, <span class="ident">proc_macro2</span>::<span class="ident">Span</span>::<span class="ident">call_site</span>()))
+});
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(
+    <span class="ident">s</span>.<span class="ident">each</span>(<span class="op">|</span><span class="ident">bi</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, #<span class="ident">bi</span>))).<span class="ident">to_string</span>(),
+
+    <span class="macro">quote</span><span class="macro">!</span>{
+        <span class="ident">A</span>::<span class="ident">B</span>{ <span class="ident">b</span>: <span class="kw-2">ref</span> <span class="ident">__binding_1</span>, .. } <span class="op">=&gt;</span> {
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">__binding_1</span>) }
+        }
+        <span class="ident">A</span>::<span class="ident">C</span>{ <span class="ident">a</span>: <span class="kw-2">ref</span> <span class="ident">__binding_0</span>, } <span class="op">=&gt;</span> {
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">__binding_0</span>) }
+        }
+    }.<span class="ident">to_string</span>()
+);</pre>
+</div><h4 id='method.remove_binding' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</h3><code class="content"><span class="where fmt-newline">impl&lt;'a, R&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;R: <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, W&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>W <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;W: <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, I&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>I <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &lt;I as <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a>&gt;::<a class="type" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item" title="type core::iter::iterator::Iterator::Item">Item</a>;</span></code></div></div><span id='remove_binding.v' class='invisible'><code>pub fn <a href='#method.remove_binding' class='fnname'>remove_binding</a>(&amp;mut self, idx: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#809-813' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Remove the binding at the given index.</p>
+<h1 id="panics" class="section-header"><a href="#panics">Panics</a></h1>
+<p>Panics if the index is out of range.</p>
+</div><h4 id='method.bind_with' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</h3><code class="content"><span class="where fmt-newline">impl&lt;'a, R&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;R: <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, W&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>W <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;W: <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, I&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>I <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &lt;I as <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a>&gt;::<a class="type" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item" title="type core::iter::iterator::Iterator::Item">Item</a>;</span></code></div></div><span id='bind_with.v' class='invisible'><code>pub fn <a href='#method.bind_with' class='fnname'>bind_with</a>&lt;F&gt;(&amp;mut self, f: F) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;<a class="struct" href="../synstructure/struct.BindingInfo.html" title="struct synstructure::BindingInfo">BindingInfo</a>) -&gt; <a class="enum" href="../synstructure/enum.BindStyle.html" title="enum synstructure::BindStyle">BindStyle</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#850-858' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Updates the <code>BindStyle</code> for each of the passed-in fields by calling the
+passed-in function for each <code>BindingInfo</code>.</p>
+<h1 id="example-5" class="section-header"><a href="#example-5">Example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">let</span> <span class="ident">di</span>: <span class="ident">syn</span>::<span class="ident">DeriveInput</span> <span class="op">=</span> <span class="macro">parse_quote</span><span class="macro">!</span> {
+    <span class="kw">enum</span> <span class="ident">A</span> {
+        <span class="ident">B</span>(<span class="ident">i32</span>, <span class="ident">i32</span>),
+        <span class="ident">C</span>(<span class="ident">u32</span>),
+    }
+};
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">Structure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">di</span>);
+
+<span class="ident">s</span>.<span class="ident">variants_mut</span>()[<span class="number">0</span>].<span class="ident">bind_with</span>(<span class="op">|</span><span class="ident">bi</span><span class="op">|</span> <span class="ident">BindStyle</span>::<span class="ident">RefMut</span>);
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(
+    <span class="ident">s</span>.<span class="ident">each</span>(<span class="op">|</span><span class="ident">bi</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, #<span class="ident">bi</span>))).<span class="ident">to_string</span>(),
+
+    <span class="macro">quote</span><span class="macro">!</span>{
+        <span class="ident">A</span>::<span class="ident">B</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">__binding_0</span>, <span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">__binding_1</span>,) <span class="op">=&gt;</span> {
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">__binding_0</span>) }
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">__binding_1</span>) }
+        }
+        <span class="ident">A</span>::<span class="ident">C</span>(<span class="kw-2">ref</span> <span class="ident">__binding_0</span>,) <span class="op">=&gt;</span> {
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">__binding_0</span>) }
+        }
+    }.<span class="ident">to_string</span>()
+);</pre>
+</div><h4 id='method.binding_name' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R</h3><code class="content"><span class="where fmt-newline">impl&lt;'a, R&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>R <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;R: <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, W&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>W <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;W: <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">impl&lt;'a, I&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'a mut </a>I <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></span><span class="where fmt-newline">    type <a href='https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item' class="type">Item</a> = &lt;I as <a class="trait" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html" title="trait core::iter::iterator::Iterator">Iterator</a>&gt;::<a class="type" href="https://doc.rust-lang.org/nightly/core/iter/iterator/trait.Iterator.html#associatedtype.Item" title="type core::iter::iterator::Iterator::Item">Item</a>;</span></code></div></div><span id='binding_name.v' class='invisible'><code>pub fn <a href='#method.binding_name' class='fnname'>binding_name</a>&lt;F&gt;(&amp;mut self, f: F) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>Self <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;<a class="struct" href="../syn/data/struct.Field.html" title="struct syn::data::Field">Field</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>) -&gt; <a class="struct" href="../proc_macro2/struct.Ident.html" title="struct proc_macro2::Ident">Ident</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#901-909' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Updates the binding name for each fo the passed-in fields by calling the
+passed-in function for each <code>BindingInfo</code>.</p>
+<p>The function will be called with the <code>BindingInfo</code> and its index in the
+enclosing variant.</p>
+<p>The default name is <code>__binding_{}</code> where <code>{}</code> is replaced with an
+increasing number.</p>
+<h1 id="example-6" class="section-header"><a href="#example-6">Example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">let</span> <span class="ident">di</span>: <span class="ident">syn</span>::<span class="ident">DeriveInput</span> <span class="op">=</span> <span class="macro">parse_quote</span><span class="macro">!</span> {
+    <span class="kw">enum</span> <span class="ident">A</span> {
+        <span class="ident">B</span>{ <span class="ident">a</span>: <span class="ident">i32</span>, <span class="ident">b</span>: <span class="ident">i32</span> },
+        <span class="ident">C</span>{ <span class="ident">a</span>: <span class="ident">u32</span> },
+    }
+};
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">Structure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">di</span>);
+
+<span class="ident">s</span>.<span class="ident">variants_mut</span>()[<span class="number">0</span>].<span class="ident">binding_name</span>(<span class="op">|</span><span class="ident">bi</span>, <span class="ident">i</span><span class="op">|</span> <span class="ident">bi</span>.<span class="ident">ident</span>.<span class="ident">clone</span>().<span class="ident">unwrap</span>());
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(
+    <span class="ident">s</span>.<span class="ident">each</span>(<span class="op">|</span><span class="ident">bi</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, #<span class="ident">bi</span>))).<span class="ident">to_string</span>(),
+
+    <span class="macro">quote</span><span class="macro">!</span>{
+        <span class="ident">A</span>::<span class="ident">B</span>{ <span class="ident">a</span>: <span class="kw-2">ref</span> <span class="ident">a</span>, <span class="ident">b</span>: <span class="kw-2">ref</span> <span class="ident">b</span>, } <span class="op">=&gt;</span> {
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">a</span>) }
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">b</span>) }
+        }
+        <span class="ident">A</span>::<span class="ident">C</span>{ <span class="ident">a</span>: <span class="kw-2">ref</span> <span class="ident">__binding_0</span>, } <span class="op">=&gt;</span> {
+            { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">__binding_0</span>) }
+        }
+    }.<span class="ident">to_string</span>()
+);</pre>
+</div><h4 id='method.referenced_ty_params' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;</h3><code class="content"><span class="where fmt-newline">impl <a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a>&gt;</span></code></div></div><span id='referenced_ty_params.v' class='invisible'><code>pub fn <a href='#method.referenced_ty_params' class='fnname'>referenced_ty_params</a>(&amp;self) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;&amp;'a <a class="struct" href="../proc_macro2/struct.Ident.html" title="struct proc_macro2::Ident">Ident</a>&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#942-948' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a list of the type parameters which are referenced in this
+field's type.</p>
+<h1 id="caveat" class="section-header"><a href="#caveat">Caveat</a></h1>
+<p>If the field contains any macros in type position, all parameters will
+be considered bound. This is because we cannot determine which type
+parameters are bound by type macros.</p>
+<h1 id="example-7" class="section-header"><a href="#example-7">Example</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">let</span> <span class="ident">di</span>: <span class="ident">syn</span>::<span class="ident">DeriveInput</span> <span class="op">=</span> <span class="macro">parse_quote</span><span class="macro">!</span> {
+    <span class="kw">struct</span> <span class="ident">A</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span> {
+        <span class="ident">a</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+        <span class="ident">b</span>: <span class="ident">U</span>,
+    }
+};
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">Structure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">di</span>);
+
+<span class="macro">assert_eq</span><span class="macro">!</span>(
+    <span class="ident">s</span>.<span class="ident">variants</span>()[<span class="number">0</span>].<span class="ident">bindings</span>()[<span class="number">0</span>].<span class="ident">referenced_ty_params</span>(),
+    <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>(<span class="ident">syn</span>::<span class="ident">Ident</span>::<span class="ident">new</span>(<span class="string">&quot;T&quot;</span>, <span class="ident">proc_macro2</span>::<span class="ident">Span</span>::<span class="ident">call_site</span>()))]
+);</pre>
+</div></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+        <h3 id='impl-Debug' class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a> for <a class="struct" href="../synstructure/struct.VariantInfo.html" title="struct synstructure::VariantInfo">VariantInfo</a>&lt;'a&gt;</code><a href='#impl-Debug' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class="method"><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class="struct" href="https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html" title="struct core::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/nightly/core/fmt/type.Result.html" title="type core::fmt::Result">Result</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter. <a href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt">Read more</a></p>
+</div></div><h3 id='impl-Clone' class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> for <a class="struct" href="../synstructure/struct.VariantInfo.html" title="struct synstructure::VariantInfo">VariantInfo</a>&lt;'a&gt;</code><a href='#impl-Clone' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class="method"><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class="struct" href="../synstructure/struct.VariantInfo.html" title="struct synstructure::VariantInfo">VariantInfo</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class="method"><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Self)</code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/clone.rs.html#112-114' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 id='impl-PartialEq' class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html" title="trait core::cmp::PartialEq">PartialEq</a> for <a class="struct" href="../synstructure/struct.VariantInfo.html" title="struct synstructure::VariantInfo">VariantInfo</a>&lt;'a&gt;</code><a href='#impl-PartialEq' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.eq' class="method"><span id='eq.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq' class='fnname'>eq</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../synstructure/struct.VariantInfo.html" title="struct synstructure::VariantInfo">VariantInfo</a>&lt;'a&gt;) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq">Read more</a></p>
+</div><h4 id='method.ne' class="method"><span id='ne.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne' class='fnname'>ne</a>(&amp;self, __arg_0: &amp;<a class="struct" href="../synstructure/struct.VariantInfo.html" title="struct synstructure::VariantInfo">VariantInfo</a>&lt;'a&gt;) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>This method tests for <code>!=</code>.</p>
+</div></div><h3 id='impl-Eq' class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html" title="trait core::cmp::Eq">Eq</a> for <a class="struct" href="../synstructure/struct.VariantInfo.html" title="struct synstructure::VariantInfo">VariantInfo</a>&lt;'a&gt;</code><a href='#impl-Eq' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'></div><h3 id='impl-Hash' class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html" title="trait core::hash::Hash">Hash</a> for <a class="struct" href="../synstructure/struct.VariantInfo.html" title="struct synstructure::VariantInfo">VariantInfo</a>&lt;'a&gt;</code><a href='#impl-Hash' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.hash' class="method"><span id='hash.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#tymethod.hash' class='fnname'>hash</a>&lt;__H:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hasher.html" title="trait core::hash::Hasher">Hasher</a>&gt;(&amp;self, __arg_0: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>__H)</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/synstructure/lib.rs.html#409' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Feeds this value into the given [<code>Hasher</code>]. <a href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#tymethod.hash">Read more</a></p>
+</div><h4 id='method.hash_slice' class="method"><span id='hash_slice.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#method.hash_slice' class='fnname'>hash_slice</a>&lt;H&gt;(data: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">&amp;[Self]</a>, state: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut </a>H) <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;H: <a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hasher.html" title="trait core::hash::Hasher">Hasher</a>,&nbsp;</span></code></span><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.3.0'>1.3.0</div><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/hash/mod.rs.html#202-208' title='goto source code'>[src]</a></span></h4>
+<div class='docblock'><p>Feeds a slice of this type into the given [<code>Hasher</code>]. <a href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html#method.hash_slice">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "synstructure";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

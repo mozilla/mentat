@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="Source to the Rust file `/Users/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-core-0.1.17/src/lib.rs`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang">
+
+    <title>lib.rs.html -- source</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc source">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+</pre><pre class="rust ">
+<span class="doccomment">//! `Future`-powered I/O at the core of Tokio</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! This crate uses the `futures` crate to provide an event loop (&quot;reactor</span>
+<span class="doccomment">//! core&quot;) which can be used to drive I/O like TCP and UDP, spawned future</span>
+<span class="doccomment">//! tasks, and other events like channels/timeouts. All asynchronous I/O is</span>
+<span class="doccomment">//! powered by the `mio` crate.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The concrete types provided in this crate are relatively bare bones but are</span>
+<span class="doccomment">//! intended to be the essential foundation for further projects needing an</span>
+<span class="doccomment">//! event loop. In this crate you&#39;ll find:</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! * TCP, both streams and listeners</span>
+<span class="doccomment">//! * UDP sockets</span>
+<span class="doccomment">//! * Timeouts</span>
+<span class="doccomment">//! * An event loop to run futures</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! More functionality is likely to be added over time, but otherwise the crate</span>
+<span class="doccomment">//! is intended to be flexible, with the `PollEvented` type accepting any</span>
+<span class="doccomment">//! type that implements `mio::Evented`. For example, the `tokio-uds` crate</span>
+<span class="doccomment">//! uses `PollEvented` to provide support for Unix domain sockets.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Some other important tasks covered by this crate are:</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! * The ability to spawn futures into an event loop. The `Handle` and `Remote`</span>
+<span class="doccomment">//!   types have a `spawn` method which allows executing a future on an event</span>
+<span class="doccomment">//!   loop. The `Handle::spawn` method crucially does not require the future</span>
+<span class="doccomment">//!   itself to be `Send`.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! * The `Io` trait serves as an abstraction for future crates to build on top</span>
+<span class="doccomment">//!   of. This packages up `Read` and `Write` functionality as well as the</span>
+<span class="doccomment">//!   ability to poll for readiness on both ends.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! * All I/O is futures-aware. If any action in this crate returns &quot;not ready&quot;</span>
+<span class="doccomment">//!   or &quot;would block&quot;, then the current future task is scheduled to receive a</span>
+<span class="doccomment">//!   notification when it would otherwise make progress.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! You can find more extensive documentation in terms of tutorials at</span>
+<span class="doccomment">//! [https://tokio.rs](https://tokio.rs).</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Examples</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! A simple TCP echo server:</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```no_run</span>
+<span class="doccomment">//! extern crate futures;</span>
+<span class="doccomment">//! extern crate tokio_core;</span>
+<span class="doccomment">//! extern crate tokio_io;</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! use futures::{Future, Stream};</span>
+<span class="doccomment">//! use tokio_io::AsyncRead;</span>
+<span class="doccomment">//! use tokio_io::io::copy;</span>
+<span class="doccomment">//! use tokio_core::net::TcpListener;</span>
+<span class="doccomment">//! use tokio_core::reactor::Core;</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! fn main() {</span>
+<span class="doccomment">//!     // Create the event loop that will drive this server</span>
+<span class="doccomment">//!     let mut core = Core::new().unwrap();</span>
+<span class="doccomment">//!     let handle = core.handle();</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//!     // Bind the server&#39;s socket</span>
+<span class="doccomment">//!     let addr = &quot;127.0.0.1:12345&quot;.parse().unwrap();</span>
+<span class="doccomment">//!     let listener = TcpListener::bind(&amp;addr, &amp;handle).unwrap();</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//!     // Pull out a stream of sockets for incoming connections</span>
+<span class="doccomment">//!     let server = listener.incoming().for_each(|(sock, _)| {</span>
+<span class="doccomment">//!         // Split up the reading and writing parts of the</span>
+<span class="doccomment">//!         // socket</span>
+<span class="doccomment">//!         let (reader, writer) = sock.split();</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//!         // A future that echos the data and returns how</span>
+<span class="doccomment">//!         // many bytes were copied...</span>
+<span class="doccomment">//!         let bytes_copied = copy(reader, writer);</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//!         // ... after which we&#39;ll print what happened</span>
+<span class="doccomment">//!         let handle_conn = bytes_copied.map(|amt| {</span>
+<span class="doccomment">//!             println!(&quot;wrote {:?} bytes&quot;, amt)</span>
+<span class="doccomment">//!         }).map_err(|err| {</span>
+<span class="doccomment">//!             println!(&quot;IO error {:?}&quot;, err)</span>
+<span class="doccomment">//!         });</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//!         // Spawn the future as a concurrent task</span>
+<span class="doccomment">//!         handle.spawn(handle_conn);</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//!         Ok(())</span>
+<span class="doccomment">//!     });</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//!     // Spin up the server on the event loop</span>
+<span class="doccomment">//!     core.run(server).unwrap();</span>
+<span class="doccomment">//! }</span>
+<span class="doccomment">//! ```</span>
+
+<span class="attribute">#![<span class="ident">doc</span>(<span class="ident">html_root_url</span> <span class="op">=</span> <span class="string">&quot;https://docs.rs/tokio-core/0.1.17&quot;</span>)]</span>
+<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">missing_docs</span>)]</span>
+<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">warnings</span>)]</span>
+<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">test</span>, <span class="ident">allow</span>(<span class="ident">deprecated</span>))]</span>
+
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">bytes</span>;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">futures</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">iovec</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">mio</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tokio</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tokio_executor</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tokio_io</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tokio_reactor</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tokio_timer</span>;
+
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">scoped_tls</span>;
+
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">log</span>;
+
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">io</span>;
+
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">channel</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">net</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">reactor</span>;
+</pre>
+</section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "tokio_core";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>
