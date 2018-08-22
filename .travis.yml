@@ -4,8 +4,10 @@ language: rust
 os: osx
 before_install:
   - brew install sqlcipher --with-fts
+env:
+  - MENTAT_RUST_VERSION=1.25.0  # Must align with `build/version.rs`.
 rust:
-  - 1.25.0  # Must align with `build/version.rs`.
+  - 1.25.0
   - stable
   - beta
   - nightly
@@ -15,11 +17,13 @@ matrix:
   fast_finish: true
 install:
   - |
-    if [[ "$TRAVIS_RUST_VERSION" = "1.25.0" ]]; then
+    if [[ "$TRAVIS_RUST_VERSION" = "$MENTAT_RUST_VERSION" ]]; then
       rustup target add aarch64-apple-ios armv7-apple-ios armv7s-apple-ios x86_64-apple-ios i386-apple-ios &&
-      # Cargo-lipo needs to be Beta version available on master and not crates version to handle building in subdirectories
-      cargo install --git https://github.com/TimNN/cargo-lipo &&
-      # If we don't list the devices available then when we come to pick on during the test run travis can't find our device.
+      # The version of cargo-lipo in Crates.io doesn't contain any support for Cargo manifests in subdirectories and the build fail.
+      # We therefore need to use a Beta version that contains the right code.
+      cargo install --git https://github.com/TimNN/cargo-lipo --rev d347567ff337ee169ba46a624229a451dd6f6067 &&
+      # If we don't list the devices available then, when we come to pick one during the test run, Travis doesn't
+      # think that there are any devices available and the build fails.
       # TODO: See if there is a less time consuming way of doing this.
       instruments -s devices
     fi
@@ -35,12 +39,13 @@ script:
       cargo test --manifest-path $manifest --verbose --no-default-features --features sqlcipher
     done
   - |
-    if [[ "$TRAVIS_RUST_VERSION" = "1.25.0" ]]; then
-      cd ffi &&
+    if [[ "$TRAVIS_RUST_VERSION" = "$MENTAT_RUST_VERSION" ]]; then
+      pushd ffi &&
       cargo lipo --release &&
-      cd ../sdks/swift/Mentat &&
+      popd &&
+      pushd sdks/swift/Mentat &&
       xcodebuild -configuration Debug -scheme "Mentat Debug" -sdk iphonesimulator test -destination 'platform=iOS Simulator,name=iPhone X,OS=11.4' &&
-      cd ../../..
+      popd
     fi
 after_success:
   - |
