@@ -5,7 +5,7 @@ os: osx
 before_install:
   - brew install sqlcipher --with-fts
 rust:
-  - 1.25.0  # Must align with `build/version.rs`.
+  - 1.25.0
   - stable
   - beta
   - nightly
@@ -13,6 +13,15 @@ matrix:
   allow_failures:
     - rust: nightly
   fast_finish: true
+jobs:
+  include:
+    - stage: "Test iOS"
+      rust: 1.25.0
+      script: ./scripts/install-ios.sh
+      script: ./scripts/test-ios.sh
+    - stage: "Docs"
+      rust: 1.25.0
+      script: ./scripts/cargo-doc.sh
 script:
   - cargo test --verbose --all
   - cargo test --features edn/serde_support --verbose --all
@@ -24,12 +33,4 @@ script:
     for crate in "" "db" "db-traits" "ffi" "public-traits" "query-projector" "query-projector-traits" "query-pull" "sql" "tolstoy" "tolstoy-traits" "transaction" "tools/cli"; do
       cargo test --manifest-path ./$crate/Cargo.toml --verbose --no-default-features --features sqlcipher
     done
-after_success:
-  - |
-    if [[ "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" ]]; then
-      cargo doc &&
-      echo "<meta http-equiv=refresh content=0;url=mentat/index.html>" > target/doc/index.html &&
-      git clone https://github.com/davisp/ghp-import.git &&
-      ./ghp-import/ghp_import.py -n -p -f -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc
-    fi
 cache: cargo
