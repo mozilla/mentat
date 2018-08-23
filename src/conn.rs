@@ -131,17 +131,6 @@ impl Conn {
         }
     }
 
-    /// Prepare the provided SQLite handle for use as a Mentat store. Creates tables but
-    /// _does not_ write the bootstrap schema. This constructor should only be used by
-    /// consumers that expect to populate raw transaction data themselves.
-
-    pub(crate) fn empty(sqlite: &mut rusqlite::Connection) -> Result<Conn> {
-        let (tx, db) = db::create_empty_current_version(sqlite)?;
-        tx.commit()?;
-        Ok(Conn::new(db.partition_map, db.schema))
-    }
-
-
     pub fn connect(sqlite: &mut rusqlite::Connection) -> Result<Conn> {
         let db = db::ensure_current_version(sqlite)?;
         Ok(Conn::new(db.partition_map, db.schema))
