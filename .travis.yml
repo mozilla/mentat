@@ -19,6 +19,7 @@ jobs:
       rust: 1.25.0
       script: ./scripts/test-ios.sh
     - stage: deploy
+      if: branch = master
       rust: 1.25.0
       script: ./scripts/build-doc.sh
       deploy:
