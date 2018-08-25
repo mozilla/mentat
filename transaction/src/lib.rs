@@ -330,6 +330,11 @@ impl<'a, 'c> InProgress<'a, 'c> {
         self.transaction.execute(&format!("ROLLBACK TO {}", name), &[])?;
         Ok(())
     }
+
+    pub fn release_savepoint(&self, name: &str) -> Result<()> {
+        self.transaction.execute(&format!("RELEASE {}", name), &[])?;
+        Ok(())
+    }
 }
 
 impl<'a, 'c> InProgressRead<'a, 'c> {

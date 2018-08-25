@@ -64,6 +64,8 @@ use mentat_transaction::query::{
 #[cfg(feature = "syncable")]
 use mentat_tolstoy::{
     SyncReport,
+    SyncResult,
+    SyncFollowup,
 };
 
 #[cfg(feature = "syncable")]
@@ -97,11 +99,29 @@ impl Store {
     }
 
     #[cfg(feature = "syncable")]
-    pub fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<SyncReport> {
-        let mut ip = self.begin_transaction()?;
-        let report = ip.sync(server_uri, user_uuid)?;
-        ip.commit()?;
-        Ok(report)
+    pub fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<SyncResult> {
+        let mut reports = vec![];
+        loop {
+            let mut ip = self.begin_transaction()?;
+            let report = ip.sync(server_uri, user_uuid)?;
+            ip.commit()?;
+
+            match report {
+                SyncReport::Merge(SyncFollowup::FullSync) => {
+                    reports.push(report);
+                    continue
+                },
+                _ => {
+                    reports.push(report);
+                    break
+                },
+            }
+        }
+        if reports.len() == 1 {
+            Ok(SyncResult::Atomic(reports[0].clone()))
+        } else {
+            Ok(SyncResult::NonAtomic(reports))
+        }
     }
 }
 

@@ -58,6 +58,8 @@ pub mod syncer;
 pub use syncer::{
     Syncer,
     SyncReport,
+    SyncResult,
+    SyncFollowup,
 };
 mod tx_uploader;
 pub mod logger;

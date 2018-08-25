@@ -143,10 +143,17 @@ impl SyncMetadata {
     }
 
     pub fn is_tx_empty(db_tx: &rusqlite::Transaction, tx_id: Entid) -> Result<bool> {
-        let count = db_tx.query_row("SELECT count(rowid) FROM timelined_transactions WHERE tx = ? AND e != ?", &[&tx_id, &tx_id], |row| -> Result<i64> {
+        let count = db_tx.query_row("SELECT count(rowid) FROM timelined_transactions WHERE timeline = 0 AND tx = ? AND e != ?", &[&tx_id, &tx_id], |row| -> Result<i64> {
             Ok(row.get_checked(0)?)
         })?;
         Ok(count? == 0)
+    }
+
+    pub fn has_entity_assertions_in_tx(db_tx: &rusqlite::Transaction, e: Entid, tx_id: Entid) -> Result<bool> {
+        let count = db_tx.query_row("SELECT count(rowid) FROM timelined_transactions WHERE timeline = 0 AND tx = ? AND e = ?", &[&tx_id, &e], |row| -> Result<i64> {
+            Ok(row.get_checked(0)?)
+        })?;
+        Ok(count? > 0)
     }
 }
 
