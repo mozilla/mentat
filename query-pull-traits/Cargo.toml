@@ -8,8 +8,8 @@ name = "query_pull_traits"
 path = "lib.rs"
 
 [dependencies]
-failure = "0.1.1"
-failure_derive = "0.1.1"
+failure = "0.1.2"
+failure_derive = "0.1.2"
 
 [dependencies.core_traits]
 path = "../core-traits"

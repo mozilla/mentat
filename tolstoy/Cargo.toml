@@ -8,7 +8,7 @@ authors = ["Grisha Kruglov <gkruglov@mozilla.com>"]
 sqlcipher = ["rusqlite/sqlcipher"]
 
 [dependencies]
-failure = "0.1.1"
+failure = "0.1.2"
 futures = "0.1"
 hyper = "0.11"
 log = "0.4"
