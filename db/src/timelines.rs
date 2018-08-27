@@ -98,6 +98,11 @@ fn move_transactions_to(conn: &rusqlite::Connection, tx_ids: &[Entid], new_timel
     Ok(())
 }
 
+fn remove_tx_from_datoms(conn: &rusqlite::Connection, tx_id: Entid) -> Result<()> {
+    conn.execute("DELETE FROM datoms WHERE e = ?", &[&tx_id])?;
+    Ok(())
+}
+
 fn is_timeline_empty(conn: &rusqlite::Connection, timeline: Entid) -> Result<bool> {
     let mut stmt = conn.prepare("SELECT timeline FROM timelined_transactions WHERE timeline = ? GROUP BY timeline")?;
     let rows = stmt.query_and_then(&[&timeline], |row| -> Result<i64> {
@@ -152,11 +157,22 @@ pub fn move_from_main_timeline(conn: &rusqlite::Connection, schema: &Schema,
         let reversed_terms = reversed_terms_for(conn, *tx_id)?;
 
         // Rewind schema and datoms.
-        let (_, _, new_schema, _) = transact_terms_with_action(
+        let (report, _, new_schema, _) = transact_terms_with_action(
             conn, partition_map.clone(), schema, schema, NullWatcher(),
             reversed_terms.into_iter().map(|t| t.rewrap()),
             InternSet::new(), TransactorAction::Materialize
         )?;
+
+        // Rewind operation generated a 'tx' and a 'txInstant' assertion, which got
+        // inserted into the 'datoms' table (due to TransactorAction::Materialize).
+        // This is problematic. If we transact a few more times, the transactor will
+        // generate the same 'tx', but with a different 'txInstant'.
+        // The end result will be a transaction which has a phantom
+        // retraction of a txInstant, since transactor operates against the state of
+        // 'datoms', and not against the 'transactions' table.
+        // A quick workaround is to just remove the bad txInstant datom.
+        // See test_clashing_tx_instants test case.
+        remove_tx_from_datoms(conn, report.tx_id)?;
         last_schema = new_schema;
     }
 
@@ -191,7 +207,7 @@ mod tests {
         };
         conn.partition_map = pmap.clone();
     }
-    
+
     #[test]
     fn test_pop_simple() {
         let mut conn = TestConn::default();
@@ -284,7 +300,85 @@ mod tests {
         "#);
     }
 
-    
+    #[test]
+    fn test_clashing_tx_instants() {
+        let mut conn = TestConn::default();
+        conn.sanitized_partition_map();
+
+        // Transact a basic schema.
+        assert_transact!(conn, r#"
+            [{:db/ident :person/name :db/valueType :db.type/string :db/cardinality :db.cardinality/one :db/unique :db.unique/identity :db/index true}]
+        "#);
+
+        // Make an assertion against our schema.
+        assert_transact!(conn, r#"[{:person/name "Vanya"}]"#);
+
+        // Move that assertion away from the main timeline.
+        let (new_schema, new_partition_map) = move_from_main_timeline(
+            &conn.sqlite, &conn.schema, conn.partition_map.clone(),
+            conn.last_tx_id().., 1
+        ).expect("moved single tx");
+        update_conn(&mut conn, &new_schema, &new_partition_map);
+
+        // Assert that our datoms are now just the schema.
+        assert_matches!(conn.datoms(), "
+            [[?e :db/ident :person/name]
+            [?e :db/valueType :db.type/string]
+            [?e :db/cardinality :db.cardinality/one]
+            [?e :db/unique :db.unique/identity]
+            [?e :db/index true]]");
+        // Same for transactions.
+        assert_matches!(conn.transactions(), "
+            [[[?e :db/ident :person/name ?tx true]
+            [?e :db/valueType :db.type/string ?tx true]
+            [?e :db/cardinality :db.cardinality/one ?tx true]
+            [?e :db/unique :db.unique/identity ?tx true]
+            [?e :db/index true ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]]");
+
+        // Re-assert our initial fact against our schema.
+        assert_transact!(conn, r#"
+            [[:db/add "tempid" :person/name "Vanya"]]"#);
+
+        // Now, change that fact. This is the "clashing" transaction, if we're
+        // performing a timeline move using the transactor.
+        assert_transact!(conn, r#"
+            [[:db/add (lookup-ref :person/name "Vanya") :person/name "Ivan"]]"#);
+
+        // Assert that our datoms are now the schema and the final assertion.
+        assert_matches!(conn.datoms(), r#"
+            [[?e1 :db/ident :person/name]
+            [?e1 :db/valueType :db.type/string]
+            [?e1 :db/cardinality :db.cardinality/one]
+            [?e1 :db/unique :db.unique/identity]
+            [?e1 :db/index true]
+            [?e2 :person/name "Ivan"]]
+        "#);
+
+        // Assert that we have three correct looking transactions.
+        // This will fail if we're not cleaning up the 'datoms' table
+        // after the timeline move.
+        assert_matches!(conn.transactions(), r#"
+            [[
+                [?e1 :db/ident :person/name ?tx1 true]
+                [?e1 :db/valueType :db.type/string ?tx1 true]
+                [?e1 :db/cardinality :db.cardinality/one ?tx1 true]
+                [?e1 :db/unique :db.unique/identity ?tx1 true]
+                [?e1 :db/index true ?tx1 true]
+                [?tx1 :db/txInstant ?ms1 ?tx1 true]
+            ]
+            [
+                [?e2 :person/name "Vanya" ?tx2 true]
+                [?tx2 :db/txInstant ?ms2 ?tx2 true]
+            ]
+            [
+                [?e2 :person/name "Ivan" ?tx3 true]
+                [?e2 :person/name "Vanya" ?tx3 false]
+                [?tx3 :db/txInstant ?ms3 ?tx3 true]
+            ]]
+        "#);
+    }
+
     #[test]
     fn test_pop_schema() {
         let mut conn = TestConn::default();
@@ -432,7 +526,7 @@ mod tests {
         assert_matches!(conn.datoms(), "[]");
         assert_matches!(conn.transactions(), "[]");
         assert_eq!(conn.partition_map, partition_map0);
-        
+
         // Assert all of schema's components individually, for some guidance in case of failures:
         assert_eq!(conn.schema.entid_map, schema0.entid_map);
         assert_eq!(conn.schema.ident_map, schema0.ident_map);
