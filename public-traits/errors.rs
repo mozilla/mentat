@@ -13,8 +13,10 @@
 use std; // To refer to std::result::Result.
 
 use std::collections::BTreeSet;
+use std::error::Error;
 
 use rusqlite;
+use uuid;
 
 use edn;
 
@@ -43,6 +45,12 @@ use sql_traits::errors::{
 use tolstoy_traits::errors::{
     TolstoyError,
 };
+
+#[cfg(feature = "syncable")]
+use hyper;
+
+#[cfg(feature = "syncable")]
+use serde_json;
 
 pub type Result<T> = std::result::Result<T, MentatError>;
 
@@ -97,8 +105,8 @@ pub enum MentatError {
 
     // It would be better to capture the underlying `rusqlite::Error`, but that type doesn't
     // implement many useful traits, including `Clone`, `Eq`, and `PartialEq`.
-    #[fail(display = "SQL error: {}", _0)]
-    RusqliteError(String),
+    #[fail(display = "SQL error: {}, cause: {}", _0, _1)]
+    RusqliteError(String, String),
 
     #[fail(display = "{}", _0)]
     EdnParseError(#[cause] edn::ParseError),
@@ -118,9 +126,24 @@ pub enum MentatError {
     #[fail(display = "{}", _0)]
     SQLError(#[cause] SQLError),
 
+    #[fail(display = "{}", _0)]
+    UuidError(#[cause] uuid::ParseError),
+
     #[cfg(feature = "syncable")]
     #[fail(display = "{}", _0)]
     TolstoyError(#[cause] TolstoyError),
+
+    #[cfg(feature = "syncable")]
+    #[fail(display = "{}", _0)]
+    NetworkError(#[cause] hyper::Error),
+
+    #[cfg(feature = "syncable")]
+    #[fail(display = "{}", _0)]
+    UriError(#[cause] hyper::error::UriError),
+
+    #[cfg(feature = "syncable")]
+    #[fail(display = "{}", _0)]
+    SerializationError(#[cause] serde_json::Error),
 }
 
 impl From<std::io::Error> for MentatError {
@@ -131,7 +154,17 @@ impl From<std::io::Error> for MentatError {
 
 impl From<rusqlite::Error> for MentatError {
     fn from(error: rusqlite::Error) -> MentatError {
-        MentatError::RusqliteError(error.to_string())
+        let cause = match error.cause() {
+            Some(e) => e.to_string(),
+            None => "".to_string()
+        };
+        MentatError::RusqliteError(error.to_string(), cause)
+    }
+}
+
+impl From<uuid::ParseError> for MentatError {
+    fn from(error: uuid::ParseError) -> MentatError {
+        MentatError::UuidError(error)
     }
 }
 
@@ -175,5 +208,26 @@ impl From<SQLError> for MentatError {
 impl From<TolstoyError> for MentatError {
     fn from(error: TolstoyError) -> MentatError {
         MentatError::TolstoyError(error)
+    }
+}
+
+#[cfg(feature = "syncable")]
+impl From<serde_json::Error> for MentatError {
+    fn from(error: serde_json::Error) -> MentatError {
+        MentatError::SerializationError(error)
+    }
+}
+
+#[cfg(feature = "syncable")]
+impl From<hyper::Error> for MentatError {
+    fn from(error: hyper::Error) -> MentatError {
+        MentatError::NetworkError(error)
+    }
+}
+
+#[cfg(feature = "syncable")]
+impl From<hyper::error::UriError> for MentatError {
+    fn from(error: hyper::error::UriError) -> MentatError {
+        MentatError::UriError(error)
     }
 }

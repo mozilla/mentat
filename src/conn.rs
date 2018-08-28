@@ -118,10 +118,6 @@ pub struct Conn {
     pub(crate) tx_observer_service: Mutex<TxObservationService>,
 }
 
-pub trait Syncable {
-    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()>;
-}
-
 impl Conn {
     // Intentionally not public.
     fn new(partition_map: PartitionMap, schema: Schema) -> Conn {

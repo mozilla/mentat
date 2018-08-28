@@ -37,9 +37,6 @@ use mentat_db::{
     TxObserver,
 };
 
-#[cfg(feature = "syncable")]
-use mentat_tolstoy::Syncer;
-
 use mentat_transaction::{
     CacheAction,
     CacheDirection,
@@ -57,16 +54,21 @@ use public_traits::errors::{
     Result,
 };
 
-#[cfg(feature = "syncable")]
-use public_traits::errors::{
-    MentatError,
-};
-
 use mentat_transaction::query::{
     PreparedResult,
     QueryExplanation,
     QueryInputs,
     QueryOutput,
+};
+
+#[cfg(feature = "syncable")]
+use mentat_tolstoy::{
+    SyncReport,
+};
+
+#[cfg(feature = "syncable")]
+use sync::{
+    Syncable,
 };
 
 /// A convenience wrapper around a single SQLite connection and a Conn. This is suitable
@@ -90,6 +92,14 @@ impl Store {
     pub fn transact(&mut self, transaction: &str) -> Result<TxReport> {
         let mut ip = self.begin_transaction()?;
         let report = ip.transact(transaction)?;
+        ip.commit()?;
+        Ok(report)
+    }
+
+    #[cfg(feature = "syncable")]
+    pub fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<SyncReport> {
+        let mut ip = self.begin_transaction()?;
+        let report = ip.sync(server_uri, user_uuid)?;
         ip.commit()?;
         Ok(report)
     }
@@ -209,25 +219,13 @@ impl Pullable for Store {
     }
 }
 
-#[cfg(feature = "syncable")]
-use uuid::Uuid;
-
-#[cfg(feature = "syncable")]
-use conn::Syncable;
-
-#[cfg(feature = "syncable")]
-impl Syncable for Store {
-    fn sync(&mut self, server_uri: &String, user_uuid: &String) -> Result<()> {
-        let uuid = Uuid::parse_str(&user_uuid).map_err(|_| MentatError::BadUuid(user_uuid.clone()))?;
-        Ok(Syncer::flow(&mut self.sqlite, server_uri, &uuid)?)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     extern crate time;
+
+    use uuid::Uuid;
 
     use std::collections::{
         BTreeSet,
@@ -243,8 +241,6 @@ mod tests {
     use std::time::{
         Duration,
     };
-
-    use uuid::Uuid;
 
     use mentat_db::cache::{
         SQLiteAttributeCache,

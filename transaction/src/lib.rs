@@ -320,6 +320,16 @@ impl<'a, 'c> InProgress<'a, 'c> {
     pub fn last_tx_id(&self) -> Entid {
         self.partition_map[":db.part/tx"].next_entid() - 1
     }
+
+    pub fn savepoint(&self, name: &str) -> Result<()> {
+        self.transaction.execute(&format!("SAVEPOINT {}", name), &[])?;
+        Ok(())
+    }
+
+    pub fn rollback_savepoint(&self, name: &str) -> Result<()> {
+        self.transaction.execute(&format!("ROLLBACK TO {}", name), &[])?;
+        Ok(())
+    }
 }
 
 impl<'a, 'c> InProgressRead<'a, 'c> {
