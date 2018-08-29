@@ -108,6 +108,15 @@ public class Mentat extends RustObject<JNA.Store> {
     }
 
     /**
+     * Get the current schema.
+     * @return An EDN string of the current schema.
+     */
+     public String currentSchema() {
+       return getAndConsumeMentatString(
+        JNA.INSTANCE.store_current_schema(this.validPointer()));
+     }
+
+    /**
      * Start a query.
      * @param query The string represeting the the query to be executed.
      * @return  The {@link Query} representing the query that can be executed.

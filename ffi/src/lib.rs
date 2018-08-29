@@ -1978,6 +1978,16 @@ pub unsafe extern "C" fn store_entid_for_attribute(store: *mut Store, attr: *con
     current_schema.get_entid(&kw).expect("Unable to find entid for invalid attribute").into()
 }
 
+/// Returns the current schema as an edn C `String`.
+///
+#[no_mangle]
+pub unsafe extern "C" fn store_current_schema(store: *mut Store) -> *mut c_char {
+  assert_not_null!(store);
+  let store = &mut *store;
+  let value = store.conn().current_schema().to_edn_value().to_string();
+  string_to_c_char(value.clone())
+}
+
 /// Returns the value at the provided `index` as a [TransactionChange](TransactionChange) .
 ///
 /// # Panics
