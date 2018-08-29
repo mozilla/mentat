@@ -89,7 +89,7 @@ fn escape_string_for_pragma(s: &str) -> String {
     s.replace("'", "''")
 }
 
-fn make_connection(uri: &Path, maybe_encryption_key: Option<&str>) -> rusqlite::Result<rusqlite::Connection> {
+pub fn make_connection(uri: &Path, maybe_encryption_key: Option<&str>) -> rusqlite::Result<rusqlite::Connection> {
     let conn = match uri.to_string_lossy().len() {
         0 => rusqlite::Connection::open_in_memory()?,
         _ => rusqlite::Connection::open(uri)?,

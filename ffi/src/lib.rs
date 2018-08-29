@@ -107,6 +107,7 @@ pub use mentat::{
     QueryResults,
     RelResult,
     Store,
+    Stores,
     Syncable,
     TypedValue,
     TxObserver,
@@ -220,7 +221,14 @@ pub unsafe extern "C" fn store_open(uri: *const c_char, error: *mut ExternError)
 pub unsafe extern "C" fn store_open_encrypted(uri: *const c_char, key: *const c_char, error: *mut ExternError) -> *mut Store {
     let uri = c_char_to_string(uri);
     let key = c_char_to_string(key);
-    translate_result(Store::open_with_key(&uri, &key), error)
+    translate_result(Stores::open_with_key(&uri, &key), error)
+}
+
+/// Variant of store_open that opens a named in-memory database.
+#[no_mangle]
+pub unsafe extern "C" fn store_open_named_in_memory_store(name: *const c_char, error: *mut ExternError) -> *mut Store {
+    let name = c_char_to_string(name);
+    translate_result(Stores::open_named_in_memory_store(name), error)
 }
 
 // TODO: open empty
@@ -1556,7 +1564,6 @@ pub unsafe extern "C" fn typed_value_into_long(typed_value: *mut Binding) -> c_l
 pub unsafe extern "C" fn typed_value_into_entid(typed_value: *mut Binding) -> Entid {
     assert_not_null!(typed_value);
     let typed_value = Box::from_raw(typed_value);
-    println!("typed value as entid {:?}", typed_value);
     unwrap_conversion(typed_value.into_entid(), ValueType::Ref)
 }
 

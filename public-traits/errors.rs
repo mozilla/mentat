@@ -11,8 +11,8 @@
 #![allow(dead_code)]
 
 use std; // To refer to std::result::Result.
-
 use std::collections::BTreeSet;
+use std::path::PathBuf;
 
 use rusqlite;
 
@@ -86,6 +86,15 @@ pub enum MentatError {
 
     #[fail(display = "provided value of type {} doesn't match attribute value type {}", _0, _1)]
     ValueTypeMismatch(ValueType, ValueType),
+
+    #[fail(display = "Cannot open store {} at path {:?} as it does not match previous store location {:?}", _0, _1, _2)]
+    StorePathMismatch(String, PathBuf, PathBuf),
+
+    #[fail(display = "The Store at {} does not exist or is not yet open.", _0)]
+    StoreNotFound(String),
+
+    #[fail(display = "The Store at {:?} has active connections and cannot be closed.", _0)]
+    StoresLockPoisoned(String),
 
     #[fail(display = "{}", _0)]
     IoError(#[cause] std::io::Error),

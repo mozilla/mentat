@@ -103,6 +103,7 @@ typedef NS_ENUM(NSInteger, ValueType) {
 
 // Store
 struct Store*_Nonnull store_open(const char*_Nonnull uri, struct RustError* _Nonnull error);
+struct Store*_Nonnull store_open_named_in_memory_store(const char*_Nonnull name, struct RustError* _Nonnull error);
 
 // Destructors.
 void destroy(void* _Nullable obj);
