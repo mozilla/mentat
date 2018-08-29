@@ -187,7 +187,7 @@ impl InputReader {
     fn read_line(&mut self, prompt: &str) -> UserAction {
         match self.interface {
             Some(ref mut r) => {
-                r.set_prompt(prompt);
+                let _ = r.set_prompt(prompt);
                 r.read_line().ok().map_or(UserAction::Quit, |line|
                     match line {
                         ReadResult::Input(s) => UserAction::TextInput(s),

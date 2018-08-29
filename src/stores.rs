@@ -275,10 +275,7 @@ impl Stores {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use conn::{
-        Queryable,
-    };
+    use mentat_transaction::Queryable;
 
     #[test]
     fn test_stores_open_new_store() {
