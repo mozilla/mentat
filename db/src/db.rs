@@ -649,7 +649,7 @@ fn insert_transaction(conn: &rusqlite::Connection, tx: Entid) -> Result<()> {
 
     let s = r#"
       INSERT INTO timelined_transactions (e, a, v, tx, added, value_type_tag)
-      SELECT e0, a0, v, ?, 0, value_type_tag0
+      SELECT DISTINCT e0, a0, v, ?, 0, value_type_tag0
       FROM temp.search_results
       WHERE rid IS NOT NULL AND
             ((added0 IS 0) OR
@@ -1882,6 +1882,36 @@ mod tests {
         // … and we can add more assertions with duplicate values.
         assert_transact!(conn, "[[:db/add 121 :test/ident 1]
                                  [:db/add 221 :test/ident 2]]");
+    }
+
+    #[test]
+    fn test_db_double_retraction_issue_818() {
+        let mut conn = TestConn::default();
+
+        // Start by installing a :db.cardinality/one attribute.
+        assert_transact!(conn, "[[:db/add 100 :db/ident :test/ident]
+                                 [:db/add 100 :db/valueType :db.type/string]
+                                 [:db/add 100 :db/cardinality :db.cardinality/one]
+                                 [:db/add 100 :db/unique :db.unique/identity]
+                                 [:db/add 100 :db/index true]]");
+
+        assert_transact!(conn, "[[:db/add 200 :test/ident \"Oi\"]]");
+
+        assert_transact!(conn, "[[:db/add 200 :test/ident \"Ai!\"]
+                                 [:db/retract 200 :test/ident \"Oi\"]]");
+
+        assert_matches!(conn.last_transaction(),
+                        "[[200 :test/ident \"Ai!\" ?tx true]
+                          [200 :test/ident \"Oi\" ?tx false]
+                          [?tx :db/txInstant ?ms ?tx true]]");
+
+        assert_matches!(conn.datoms(),
+                        "[[100 :db/ident :test/ident]
+                          [100 :db/valueType :db.type/string]
+                          [100 :db/cardinality :db.cardinality/one]
+                          [100 :db/unique :db.unique/identity]
+                          [100 :db/index true]
+                          [200 :test/ident \"Ai!\"]]");
     }
 
     /// Verify that we can't alter :db/fulltext schema characteristics at all.
