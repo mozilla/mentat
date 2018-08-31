@@ -28,10 +28,16 @@ import java.util.UUID;
 public class TypedValue extends RustObject<JNA.TypedValue> {
 
     private Object value;
+    private String type = null;
 
     public TypedValue(JNA.TypedValue pointer) {
         super(pointer);
-    }
+        this.type = getAndConsumeMentatString(JNA.INSTANCE.typed_value_value_type_kw(super.validPointer()));
+        if ( this.type == null ) {
+          super.close ();
+          throw new IllegalArgumentException ("Failed to obtain Keyword for the valueType of this TypedValue");
+        }
+      }
 
     /**
      * This value as a {@link Long}. This function will panic if the `ValueType` of this
@@ -129,6 +135,14 @@ public class TypedValue extends RustObject<JNA.TypedValue> {
             this.value = getAndConsumeUUIDPointer(JNA.INSTANCE.typed_value_into_uuid(this.consumePointer()));
         }
         return (UUID)this.value;
+    }
+
+    /**
+    * The :db/valueType of this value as a keyword {@link String}.
+    * @return the value type of this {@link TypedValue} as a Keyword
+    */
+    public String valueTypeKeyword() {
+        return this.type;
     }
 
     @Override

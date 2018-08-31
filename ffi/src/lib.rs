@@ -1556,7 +1556,6 @@ pub unsafe extern "C" fn typed_value_into_long(typed_value: *mut Binding) -> c_l
 pub unsafe extern "C" fn typed_value_into_entid(typed_value: *mut Binding) -> Entid {
     assert_not_null!(typed_value);
     let typed_value = Box::from_raw(typed_value);
-    println!("typed value as entid {:?}", typed_value);
     unwrap_conversion(typed_value.into_entid(), ValueType::Ref)
 }
 
@@ -1657,6 +1656,14 @@ pub unsafe extern "C" fn typed_value_into_uuid(typed_value: *mut Binding) -> *mu
 pub unsafe extern "C" fn typed_value_value_type(typed_value: *mut Binding) -> ValueType {
     let typed_value = &*typed_value;
     typed_value.value_type().unwrap_or_else(|| panic!("Binding is not Scalar and has no ValueType"))
+}
+
+/// Returns the [ValueType](mentat::ValueType) of this [Binding](mentat::Binding).
+#[no_mangle]
+pub unsafe extern "C" fn typed_value_value_type_kw(typed_value: *mut Binding) -> *mut c_char {
+    let typed_value = &*typed_value;
+    let value = typed_value.value_type().unwrap_or_else(|| panic!("Binding is not Scalar and has no ValueType")).into_edn_value().to_string();
+    string_to_c_char(value.clone())
 }
 
 /// Returns the value at the provided `index` as a `Vec<ValueType>`.
