@@ -1666,6 +1666,14 @@ pub unsafe extern "C" fn typed_value_value_type_kw(typed_value: *mut Binding) ->
     string_to_c_char(value.clone())
 }
 
+/// Returns the size of a `row` as usize
+#[no_mangle]
+pub unsafe extern "C" fn typed_value_list_size(values: *mut Vec<Binding>) -> c_int {
+    assert_not_null!(values);
+    let values = &*values;
+    values.len () as c_int
+}
+
 /// Returns the value at the provided `index` as a `Vec<ValueType>`.
 /// If there is no value present at the `index`, a null pointer is returned.
 ///
