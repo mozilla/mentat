@@ -413,6 +413,9 @@ fn test_keyword() {
 
     assert!(keyword(":").is_err());
     assert!(keyword(":foo/").is_err());
+
+    assert_eq!(keyword(":foo*!_?$%&=<>-+").unwrap(), k_plain("foo*!_?$%&=<>-+"));
+    assert_eq!(keyword(":foo/bar*!_?$%&=<>-+").unwrap(), k_ns("foo", "bar*!_?$%&=<>-+"));
 }
 
 #[test]
