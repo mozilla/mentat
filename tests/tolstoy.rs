@@ -219,36 +219,36 @@ mod tolstoy_tests {
                 we => panic!("Failed with wrong error: {:?}", we),
             }
         }};
-
     }
 
-    // TODO this macro needs ability to assert client states
-    // macro_rules! assert_flow {
-    //     ( $1_input_report_tuple_list: expr, $2_input_report_tuple_list: expr ) => {
-    //         let mut sqlite_1 = new_connection("").unwrap();
-    //         let mut sqlite_2 = new_connection("").unwrap();
+    macro_rules! assert_transactions {
+        ($sqlite:expr, $conn:expr, $($tx:expr),+) => {
+            let txs = txs_after(&$sqlite, &$conn.current_schema(), TX0);
 
-    //         let mut conn_1 = Conn::connect(&mut sqlite_1).unwrap();
-    //         let mut conn_2 = Conn::con)nect(&mut sqlite_2).unwrap();
+            let mut index = 1;
+            $(
+                assert_matches!(parts_to_datoms(&$conn.current_schema(), &txs[index].parts), $tx);
+                index = index + 1;
+            )*
 
-    //         let mut remote_client = TestRemoteClient::new();
+            assert_eq!(index, txs.len());
+        };
 
-    //         let tuple_pairs = $1_input_report_tuple_list.iter().zip($2_input_report_tuple_list.iter());
+        ($sqlite:expr, $conn:expr, schema => $schema:expr, $($tx:expr),*) => {
+            let txs = txs_after(&$sqlite, &$conn.current_schema(), TX0);
 
-    //         let on_1 = true;
-    //         for (input, report) in tuple_pairs {
-    //             let (conn, sqlite) = match on_1 {
-    //                 true => (conn_1, sqlite_1),
-    //                 false => (conn_2, sqlite_2)
-    //             };
-    //             conn.transact(&mut sqlite, input).expect("transacted");
-    //             if let Some(sync_report) = report {
-    //                 assert_sync!(sync_report, conn, sqlite, remote_client);
-    //             }
-    //             on_1 = !on_1;
-    //         }
-    //     };
-    // }
+            // Schema assumed to be first transaction.
+            assert_matches!(parts_to_datoms(&$conn.current_schema(), &txs[0].parts), $schema);
+
+            let mut index = 1;
+            $(
+                assert_matches!(parts_to_datoms(&$conn.current_schema(), &txs[index].parts), $tx);
+                index = index + 1;
+            )*
+
+            assert_eq!(index, txs.len());
+        };
+    }
 
     #[test]
     fn test_reader() {
@@ -480,14 +480,13 @@ mod tolstoy_tests {
         assert_sync!(SyncReport::Merge(SyncFollowup::None), conn_2, sqlite_2, remote_client);
 
         // Assert that we end up with the same schema on 2 as we had on 1.
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(1, synced_txs_2.len());
-
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_2, conn_2,
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
+        );
 
         // Assert that 2's sync didn't affect remote state.
         assert_sync!(SyncReport::NoChanges, conn_1, sqlite_1, remote_client);
@@ -521,14 +520,13 @@ mod tolstoy_tests {
         assert_sync!(SyncReport::Merge(SyncFollowup::None), conn_2, sqlite_2, remote_client);
 
         // Assert that 2's schema didn't change after sync.
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(1, synced_txs_2.len());
-
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_2, conn_2,
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
+        );
 
         // Assert that 2's sync didn't change remote state.
         assert_sync!(SyncReport::NoChanges, conn_1, sqlite_1, remote_client);
@@ -564,21 +562,18 @@ mod tolstoy_tests {
         // Merge bootstrap+schema transactions from 1 into 2.
         assert_sync!(SyncReport::Merge(SyncFollowup::None), conn_2, sqlite_2, remote_client);
 
-        // Assert that has two transactions after a sync: schema definition and entity assertion.
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(2, synced_txs_2.len());
-
-        // Assert that 2's schema is the same as before the sync.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_2, conn_2,
+            // Assert that 2's schema is the same as before the sync.
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
 
-        // Assert that 2 has an additional transaction from 1 (name=Ivan).
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[1].parts), "[
-            [?e :person/name \"Ivan\" ?tx true]
-            [?tx :db/txInstant ?ms1 ?tx true]]");
+            // Assert that 2 has an additional transaction from 1 (name=Ivan).
+            r#"[[?e :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms1 ?tx true]]"#
+        );
 
         // Assert that 2's sync didn't change remote state.
         assert_sync!(SyncReport::NoChanges, conn_1, sqlite_1, remote_client);
@@ -614,19 +609,17 @@ mod tolstoy_tests {
         // Merge bootstrap+schema transactions from 1 into 2.
         assert_sync!(SyncReport::Merge(SyncFollowup::None), conn_2, sqlite_2, remote_client);
 
-        // Assert that has two transactions after a sync: schema definition and entity assertion.
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(1, synced_txs_2.len());
-
         // Assert that 2's schema has been augmented with 1's.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_2, conn_2,
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
             [:person/age :db/ident :person/age ?tx true]
             [:person/age :db/valueType :db.type/long ?tx true]
             [:person/age :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
+        );
 
         // Assert that 2's sync didn't change remote state.
         assert_sync!(SyncReport::NoChanges, conn_1, sqlite_1, remote_client);
@@ -668,23 +661,20 @@ mod tolstoy_tests {
         // Merge bootstrap+schema transactions from 1 into 2.
         assert_sync!(SyncReport::Merge(SyncFollowup::None), conn_2, sqlite_2, remote_client);
 
-        // Assert that has two transactions after a sync: schema definition and entity assertion.
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(2, synced_txs_2.len());
-
-        // Assert that 2's schema is unchanged.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_2, conn_2,
+            // Assert that 2's schema is unchanged.
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
             [:person/name :db/unique :db.unique/identity ?tx true]
             [:person/name :db/index true ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
 
-        // Assert that 2's unique entity got smushed with 1's.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[1].parts), r#"[
-            [?e :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            // Assert that 2's unique entity got smushed with 1's.
+            r#"[[?e :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
 
         // Assert that 2's sync didn't change remote state.
         assert_sync!(SyncReport::NoChanges, conn_1, sqlite_1, remote_client);
@@ -742,23 +732,19 @@ mod tolstoy_tests {
 
         // We currently have a primitive conflict resolution strategy,
         // ending up with a new "Vanya" entity.
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(4, synced_txs_2.len());
+        assert_transactions!(sqlite_2, conn_2,
+            // These hard-coded entids are brittle but deterministic.
+            // They signify that we end up with a new entity Vanya, separate from the one
+            // that was renamed.
+            r#"[[65537 :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        // These hard-coded entids are brittle but deterministic.
-        // They signify that we end up with a new entity Vanya, separate from the one
-        // that was renamed.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[1].parts), r#"[
-            [65537 :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            r#"[[65537 :person/name "Ivan" ?tx false]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[2].parts), r#"[
-            [65537 :person/name "Ivan" ?tx false]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
-
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[3].parts), r#"[
-            [65538 :person/name "Vanya" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            r#"[[65538 :person/name "Vanya" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
     }
 
     #[test]
@@ -813,18 +799,15 @@ mod tolstoy_tests {
 
         // Deletion of "Ivan" will be dropped on the floor, since there's no such
         // entity anymore (it's "Vanya").
-        let synced_txs_1 = txs_after(&sqlite_1, &conn_1.current_schema(), TX0);
-        assert_eq!(3, synced_txs_1.len());
+        assert_transactions!(sqlite_1, conn_1,
+            // These hard-coded entids are brittle but deterministic.
+            r#"[[65537 :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        // These hard-coded entids are brittle but deterministic.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[1].parts), r#"[
-            [65537 :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
-
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[2].parts), r#"[
-            [65537 :person/name "Ivan" ?tx false]
+            r#"[[65537 :person/name "Ivan" ?tx false]
             [65537 :person/name "Vanya" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
     }
 
     #[test]
@@ -877,27 +860,21 @@ mod tolstoy_tests {
         // And now, merge!
         assert_sync!(SyncReport::Merge(SyncFollowup::FullSync), conn_1, sqlite_1, remote_client);
 
-        // We currently have a primitive conflict resolution strategy,
-        // ending up with a new "Vanechka" entity.
-        let synced_txs_1 = txs_after(&sqlite_1, &conn_1.current_schema(), TX0);
-        assert_eq!(4, synced_txs_1.len());
-
         // These hard-coded entids are brittle but deterministic.
-        // They signify that we end up with a new entity Vanya, separate from the one
+        // They signify that we end up with a new entity Vanechka, separate from the one
         // that was renamed.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[1].parts), r#"[
-            [65537 :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+        assert_transactions!(sqlite_1, conn_1,
+            r#"[[65537 :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[2].parts), r#"[
-            [65537 :person/name "Ivan" ?tx false]
+            r#"[[65537 :person/name "Ivan" ?tx false]
             [65537 :person/name "Vanya" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        // A new entity is created for the second rename.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[3].parts), r#"[
-            [65538 :person/name "Vanechka" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            // A new entity is created for the second rename.
+            r#"[[65538 :person/name "Vanechka" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
     }
 
     #[test]
@@ -960,25 +937,23 @@ mod tolstoy_tests {
         assert_sync!(SyncReport::RemoteFastForward, conn_2, sqlite_2, remote_client);
         assert_sync!(SyncReport::LocalFastForward, conn_1, sqlite_1, remote_client);
 
-        let synced_txs_1 = txs_after(&sqlite_1, &conn_1.current_schema(), TX0);
-        assert_eq!(3, synced_txs_1.len());
-
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_1, conn_1,
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
 
-        // Assert that 2's unique entity got smushed with 1's.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[1].parts), r#"[
-            [?e :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            // Assert that 2's unique entity got smushed with 1's.
+            r#"[[?e :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[2].parts), "[
-            [:person/age :db/ident :person/age ?tx true]
+            // Assert that 2's extra vocabulary is present.
+            "[[:person/age :db/ident :person/age ?tx true]
             [:person/age :db/valueType :db.type/long ?tx true]
             [:person/age :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]"
+        );
     }
 
     #[test]
@@ -1036,28 +1011,24 @@ mod tolstoy_tests {
 
         // We currently have a primitive conflict resolution strategy,
         // ending up with a new "Vanya" entity.
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(5, synced_txs_2.len());
 
         // These hard-coded entids are brittle but deterministic.
         // They signify that we end up with a new entity Vanya, separate from the one
         // that was renamed.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[1].parts), r#"[
-            [65537 :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+        assert_transactions!(sqlite_2, conn_2,
+            r#"[[65537 :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[2].parts), r#"[
-            [65538 :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            r#"[[65538 :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[3].parts), r#"[
-            [65537 :person/name "Ivan" ?tx false]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            r#"[[65537 :person/name "Ivan" ?tx false]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[4].parts), r#"[
-            [65538 :person/name "Ivan" ?tx false]
+            r#"[[65538 :person/name "Ivan" ?tx false]
             [65538 :person/name "Vanya" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
     }
 
     #[test]
@@ -1116,25 +1087,22 @@ mod tolstoy_tests {
         // We currently have a primitive conflict resolution strategy,
         // ending up dropping first's removal of "Ivan".
         // Internally that happens because :person/name is not :db/unique.
-        let synced_txs_1 = txs_after(&sqlite_1, &conn_1.current_schema(), TX0);
-        assert_eq!(4, synced_txs_1.len());
 
         // These hard-coded entids are brittle but deterministic.
         // They signify that we end up with a new entity Vanya, separate from the one
         // that was renamed.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[1].parts), r#"[
-            [65537 :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+        assert_transactions!(sqlite_1, conn_1,
+            r#"[[65537 :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[2].parts), r#"[
-            [65538 :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            r#"[[65538 :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        // Just the rename left, removal is dropped on the floor.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[3].parts), r#"[
-            [65537 :person/name "Ivan" ?tx false]
+            // Just the rename left, removal is dropped on the floor.
+            r#"[[65537 :person/name "Ivan" ?tx false]
             [65537 :person/name "Vanya" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
     }
 
     #[test]
@@ -1170,25 +1138,20 @@ mod tolstoy_tests {
         // Since :world/city is not unique, we elect not to smush these entities.
         assert_sync!(SyncReport::Merge(SyncFollowup::FullSync), conn_2, sqlite_2, remote_client);
 
-        // Assert that 2 has three transactions after a sync: schema definition and two entity assertions.
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(3, synced_txs_2.len());
-
-        // Assert that 2's schema is unchanged.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[0].parts), "[
-            [?e :db/ident :world/city ?tx true]
+        assert_transactions!(sqlite_2, conn_2,
+            schema =>
+            "[[?e :db/ident :world/city ?tx true]
             [?e :db/valueType :db.type/string ?tx true]
             [?e :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
 
-        // Assert that we didn't try smushing non-unique entities.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[1].parts), r#"[
-            [?e :world/city "Vancouver" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            // Assert that we didn't try smushing non-unique entities.
+            r#"[[?e :world/city "Vancouver" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[2].parts), r#"[
-            [?e :world/city "Vancouver" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            r#"[[?e :world/city "Vancouver" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
 
         // Since follow-up must be manually triggered, 1 shouldn't observe any changes yet.
         assert_sync!(SyncReport::NoChanges, conn_1, sqlite_1, remote_client);
@@ -1199,25 +1162,21 @@ mod tolstoy_tests {
         // 2 should now observe merge results from 1.
         assert_sync!(SyncReport::LocalFastForward, conn_1, sqlite_1, remote_client);
 
-        // Assert that 1 has three transactions after a sync: schema definition and two entity assertions.
-        let synced_txs_1 = txs_after(&sqlite_1, &conn_1.current_schema(), TX0);
-        assert_eq!(3, synced_txs_1.len());
-
-        // Assert that 1's schema is unchanged.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[0].parts), "[
-            [?e :db/ident :world/city ?tx true]
+        assert_transactions!(sqlite_1, conn_1,
+            // Assert that 1's schema is unchanged.
+            schema =>
+            "[[?e :db/ident :world/city ?tx true]
             [?e :db/valueType :db.type/string ?tx true]
             [?e :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
 
-        // Assert that we didn't try smushing non-unique entities.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[1].parts), r#"[
-            [?e :world/city "Vancouver" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            // Assert that we didn't try smushing non-unique entities.
+            r#"[[?e :world/city "Vancouver" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[2].parts), r#"[
-            [?e :world/city "Vancouver" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            r#"[[?e :world/city "Vancouver" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
     }
 
     #[test]
@@ -1254,28 +1213,24 @@ mod tolstoy_tests {
         // Merge bootstrap+schema transactions from 1 into 2.
         assert_sync!(SyncReport::Merge(SyncFollowup::FullSync), conn_2, sqlite_2, remote_client);
 
-        // Assert that has two transactions after a sync: schema definition and entity assertion.
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(3, synced_txs_2.len());
-
-        // Assert that 2's schema has been augmented with 1's.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_2, conn_2,
+            // Assert that 2's schema has been augmented with 1's.
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
             [:person/age :db/ident :person/age ?tx true]
             [:person/age :db/valueType :db.type/long ?tx true]
             [:person/age :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
 
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[1].parts), r#"[
-            [?e :person/name "Ivan" ?tx true]
+            r#"[[?e :person/name "Ivan" ?tx true]
             [?e :person/age 28 ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[2].parts), r#"[
-            [?e :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            r#"[[?e :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
 
         // Follow-up sync after merge.
         assert_sync!(SyncReport::RemoteFastForward, conn_2, sqlite_2, remote_client);
@@ -1283,27 +1238,24 @@ mod tolstoy_tests {
         // Assert that 2's sync fast-forwarded remote.
         assert_sync!(SyncReport::LocalFastForward, conn_1, sqlite_1, remote_client);
 
-        let synced_txs_1 = txs_after(&sqlite_1, &conn_1.current_schema(), TX0);
-        assert_eq!(3, synced_txs_1.len());
-
-        // Assert that 1's schema remains the same, and it sees the extra Ivan.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_1, conn_1,
+            // Assert that 1's schema remains the same, and it sees the extra Ivan.
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
             [:person/age :db/ident :person/age ?tx true]
             [:person/age :db/valueType :db.type/long ?tx true]
             [:person/age :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
 
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[1].parts), r#"[
-            [?e :person/name "Ivan" ?tx true]
+            r#"[[?e :person/name "Ivan" ?tx true]
             [?e :person/age 28 ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            [?tx :db/txInstant ?ms ?tx true]]"#,
 
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[2].parts), r#"[
-            [?e :person/name "Ivan" ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]"#);
+            r#"[[?e :person/name "Ivan" ?tx true]
+            [?tx :db/txInstant ?ms ?tx true]]"#
+        );
     }
 
     #[test]
@@ -1339,24 +1291,21 @@ mod tolstoy_tests {
         // Merge bootstrap+schema transactions from 1 into 2.
         assert_sync!(SyncReport::Merge(SyncFollowup::FullSync), conn_2, sqlite_2, remote_client);
 
-        let synced_txs_2 = txs_after(&sqlite_2, &conn_2.current_schema(), TX0);
-        assert_eq!(2, synced_txs_2.len());
-
-        // Assert that 2's schema is intact, and has been augmented with 1's.
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_2, conn_2,
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
             [:person/age :db/ident :person/age ?tx true]
             [:person/age :db/valueType :db.type/long ?tx true]
             [:person/age :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
 
-        assert_matches!(parts_to_datoms(&conn_2.current_schema(), &synced_txs_2[1].parts), "[
-            [:person/sin :db/ident :person/sin ?tx true]
+            "[[:person/sin :db/ident :person/sin ?tx true]
             [:person/sin :db/valueType :db.type/long ?tx true]
             [:person/sin :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]"
+        );
 
         // Follow-up sync after merge.
         assert_sync!(SyncReport::RemoteFastForward, conn_2, sqlite_2, remote_client);
@@ -1364,24 +1313,22 @@ mod tolstoy_tests {
         // Assert that 2's sync moved forward the remote state.
         assert_sync!(SyncReport::LocalFastForward, conn_1, sqlite_1, remote_client);
 
-        let synced_txs_1 = txs_after(&sqlite_1, &conn_1.current_schema(), TX0);
-        assert_eq!(2, synced_txs_1.len());
-
-        // Assert that 1's schema is intact, and has been augmented with 2's.
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[0].parts), "[
-            [:person/name :db/ident :person/name ?tx true]
+        assert_transactions!(sqlite_1, conn_1,
+            // Assert that 1's schema is intact, and has been augmented with 2's.
+            schema =>
+            "[[:person/name :db/ident :person/name ?tx true]
             [:person/name :db/valueType :db.type/string ?tx true]
             [:person/name :db/cardinality :db.cardinality/one ?tx true]
             [:person/age :db/ident :person/age ?tx true]
             [:person/age :db/valueType :db.type/long ?tx true]
             [:person/age :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]",
 
-        assert_matches!(parts_to_datoms(&conn_1.current_schema(), &synced_txs_1[1].parts), "[
-            [:person/sin :db/ident :person/sin ?tx true]
+            "[[:person/sin :db/ident :person/sin ?tx true]
             [:person/sin :db/valueType :db.type/long ?tx true]
             [:person/sin :db/cardinality :db.cardinality/one ?tx true]
-            [?tx :db/txInstant ?ms ?tx true]]");
+            [?tx :db/txInstant ?ms ?tx true]]"
+        );
     }
 
     #[test]
