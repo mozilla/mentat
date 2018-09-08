@@ -39,6 +39,12 @@ path = "../db-traits"
 [dependencies.tolstoy_traits]
 path = "../tolstoy-traits"
 
+[dependencies.public_traits]
+path = "../public-traits"
+
+[dependencies.mentat_transaction]
+path = "../transaction"
+
 [dependencies.rusqlite]
 version = "0.13"
 features = ["limits"]

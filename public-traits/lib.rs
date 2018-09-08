@@ -20,7 +20,16 @@ extern crate db_traits;
 extern crate query_pull_traits;
 extern crate query_projector_traits;
 extern crate query_algebrizer_traits;
-extern crate tolstoy_traits;
 extern crate sql_traits;
+extern crate uuid;
+
+#[cfg(feature = "syncable")]
+extern crate tolstoy_traits;
+
+#[cfg(feature = "syncable")]
+extern crate hyper;
+
+#[cfg(feature = "syncable")]
+extern crate serde_json;
 
 pub mod errors;

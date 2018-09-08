@@ -107,7 +107,6 @@ pub use mentat::{
     QueryResults,
     RelResult,
     Store,
-    Syncable,
     TypedValue,
     TxObserver,
     TxReport,

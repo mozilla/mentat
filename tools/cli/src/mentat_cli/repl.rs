@@ -47,11 +47,6 @@ use mentat::{
     TypedValue,
 };
 
-#[cfg(feature = "syncable")]
-use mentat::{
-    Syncable,
-};
-
 use command_parser::{
     Command,
 };
@@ -356,7 +351,7 @@ impl Repl {
             #[cfg(feature = "syncable")]
             Command::Sync(args) => {
                 match self.store.sync(&args[0], &args[1]) {
-                    Ok(_) => println!("Synced!"),
+                    Ok(report) => println!("Sync report: {}", report),
                     Err(e) => eprintln!("{:?}", e)
                 };
             },
@@ -403,7 +398,7 @@ impl Repl {
         if self.path.is_empty() || path != self.path {
             let next = match encryption_key {
                 #[cfg(not(feature = "sqlcipher"))]
-                Some(_) => return Err(::mentat::MentatError::RusqliteError(".open_encrypted requires the sqlcipher Mentat feature".into())),
+                Some(_) => return Err(::mentat::MentatError::RusqliteError(".open_encrypted requires the sqlcipher Mentat feature".into(), "".into())),
                 #[cfg(feature = "sqlcipher")]
                 Some(k) => {
                     Store::open_with_key(path.as_str(), k)?

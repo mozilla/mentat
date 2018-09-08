@@ -27,22 +27,50 @@ extern crate serde;
 extern crate serde_cbor;
 extern crate serde_json;
 
-// See https://github.com/rust-lang/rust/issues/44342#issuecomment-376010077.
-#[cfg_attr(test, macro_use)] extern crate log;
-#[cfg_attr(test, macro_use)] extern crate mentat_db;
+extern crate log;
+extern crate mentat_db;
 
 extern crate mentat_core;
 extern crate db_traits;
 #[macro_use]
 extern crate core_traits;
+extern crate public_traits;
 extern crate rusqlite;
 extern crate uuid;
 
 extern crate tolstoy_traits;
+extern crate mentat_transaction;
 
-pub mod schema;
+pub mod bootstrap;
 pub mod metadata;
-pub mod tx_processor;
+pub use metadata::{
+    PartitionsTable,
+    SyncMetadata,
+};
+mod datoms;
+pub mod debug;
+pub mod remote_client;
+pub use remote_client::{
+    RemoteClient,
+};
+pub mod schema;
 pub mod syncer;
+pub use syncer::{
+    Syncer,
+    SyncReport,
+    SyncResult,
+    SyncFollowup,
+};
+mod tx_uploader;
+pub mod logger;
 pub mod tx_mapper;
-pub use syncer::Syncer;
+pub use tx_mapper::{
+    TxMapper,
+};
+pub mod tx_processor;
+pub mod types;
+pub use types::{
+    Tx,
+    TxPart,
+    GlobalTransactionLog,
+};

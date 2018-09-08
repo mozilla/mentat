@@ -9,19 +9,24 @@
 // specific language governing permissions and limitations under the License.
 
 use std;
+use std::error::Error;
 use rusqlite;
 use uuid;
 use hyper;
 use serde_json;
 
-use db_traits::errors::DbError;
-
-pub type Result<T> = ::std::result::Result<T, TolstoyError>;
+use db_traits::errors::{
+    DbError,
+};
 
 #[derive(Debug, Fail)]
 pub enum TolstoyError {
-    #[fail(display = "Received bad response from the server: {}", _0)]
-    BadServerResponse(String),
+    #[fail(display = "Received bad response from the remote: {}", _0)]
+    BadRemoteResponse(String),
+
+    // TODO expand this into concrete error types
+    #[fail(display = "Received bad remote state: {}", _0)]
+    BadRemoteState(String),
 
     #[fail(display = "encountered more than one metadata value for key: {}", _0)]
     DuplicateMetadata(String),
@@ -46,8 +51,8 @@ pub enum TolstoyError {
 
     // It would be better to capture the underlying `rusqlite::Error`, but that type doesn't
     // implement many useful traits, including `Clone`, `Eq`, and `PartialEq`.
-    #[fail(display = "SQL error: {}", _0)]
-    RusqliteError(String),
+    #[fail(display = "SQL error: {}, cause: {}", _0, _1)]
+    RusqliteError(String, String),
 
     #[fail(display = "{}", _0)]
     IoError(#[cause] std::io::Error),
@@ -76,7 +81,11 @@ impl From<serde_json::Error> for TolstoyError {
 
 impl From<rusqlite::Error> for TolstoyError {
     fn from(error: rusqlite::Error) -> TolstoyError {
-        TolstoyError::RusqliteError(error.to_string())
+        let cause = match error.cause() {
+            Some(e) => e.to_string(),
+            None => "".to_string()
+        };
+        TolstoyError::RusqliteError(error.to_string(), cause)
     }
 }
 
