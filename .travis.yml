@@ -18,9 +18,20 @@ jobs:
     - stage: "Test iOS"
       rust: 1.25.0
       script: ./scripts/test-ios.sh
-    - stage: "Docs"
+    - stage: deploy
+      if: branch = master
       rust: 1.25.0
-      script: ./scripts/cargo-doc.sh
+      script: ./scripts/build-doc.sh
+      deploy:
+        provider: pages
+        skip-cleanup: true
+        github-token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
+        keep-history: true
+        local-dir: docs/apis/latest
+        target-branch: gh-pages-api-docs
+        verbose: true
+        on:
+          branch: master
 script:
   - cargo test --verbose --all
   - cargo test --features edn/serde_support --verbose --all
