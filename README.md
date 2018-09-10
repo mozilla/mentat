@@ -212,7 +212,7 @@ The top-level main crate of Mentat assembles these component crates into somethi
 
 ### Syncing
 
-Sync code lives, for [referential reasons](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying), in a crate named `tolstoy`. This code is a work in progress.
+Sync code lives, for [referential reasons](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying), in a crate named `tolstoy`. This code is a work in progress; current state is a proof-of-concept implementation which largely relies on the internal transactor to make progress in most cases and comes with a basic support for timelines. See [Tolstoy's documentation](https://github.com/mozilla/mentat/tree/master/tolstoy/README.md) for details.
 
 ### The command-line interface
 
