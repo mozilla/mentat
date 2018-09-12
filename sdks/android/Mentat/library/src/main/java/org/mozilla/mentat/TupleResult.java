@@ -37,8 +37,11 @@ import java.util.UUID;
  */
 public class TupleResult extends RustObject<JNA.TypedValueList> {
 
+    private int size;
+
     public TupleResult(JNA.TypedValueList pointer) {
         super(pointer);
+        this.size = JNA.INSTANCE.typed_value_list_size(super.validPointer());
     }
 
     /**
@@ -143,6 +146,14 @@ public class TupleResult extends RustObject<JNA.TypedValueList> {
     public UUID asUUID(Integer index) {
         return getAndConsumeUUIDPointer(
                 JNA.INSTANCE.value_at_index_into_uuid(this.validPointer(), index));
+    }
+
+    /**
+     * Return the size of the tuple.
+     * @return The number of items in this tuple
+     */
+    public int size () {
+      return this.size;
     }
 
     @Override

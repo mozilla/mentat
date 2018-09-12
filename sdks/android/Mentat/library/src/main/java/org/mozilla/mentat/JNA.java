@@ -156,7 +156,9 @@ public interface JNA extends Library {
     double typed_value_into_double(TypedValue value);
     long typed_value_into_timestamp(TypedValue value);
     int typed_value_value_type(TypedValue value);
+    Pointer typed_value_value_type_kw(TypedValue value);
 
+    int typed_value_list_size(TypedValueList rows);
     TypedValueList row_at_index(RelResult rows, int index);
     RelResultIter typed_value_result_set_into_iter(RelResult rows);
     TypedValueList typed_value_result_set_iter_next(RelResultIter iter);
