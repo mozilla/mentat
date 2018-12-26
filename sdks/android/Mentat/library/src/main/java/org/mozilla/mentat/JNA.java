@@ -126,6 +126,7 @@ public interface JNA extends Library {
     void store_register_observer(Store store, String key, Pointer attributes, int len, TxObserverCallback callback);
     void store_unregister_observer(Store store, String key);
     long store_entid_for_attribute(Store store, String attr);
+    Pointer store_current_schema(Store store);
 
     // Query Building
     QueryBuilder store_query(Store store, String query);
